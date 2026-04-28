@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анастасия Викторовна | Мастер красоты</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="navbar">
+        <div class="container nav-container">
+            <div class="logo">Анастасия Викторовна</div>
+            <div class="nav-links">
+                <a href="#services">Услуги</a>
+                <a href="#booking">Записаться</a>
+                <a href="#contacts">Контакты</a>
+            </div>
+            <a href="#booking" class="btn btn-nav">Записаться</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg"></div>
+        <div class="container hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">Анастасия Викторовна</h1>
+                <p class="hero-subtitle">Индивидуальный мастер красоты</p>
+                <p class="hero-tagline">Создаю красоту, которая раскрывает вашу индивидуальность</p>
+                <div class="hero-buttons">
+                    <a href="#booking" class="btn btn-primary btn-lg">Записаться</a>
+                    <a href="#services" class="btn btn-secondary btn-lg">Услуги</a>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="image-frame">
+                    <img src="images/hero.jpg" alt="Анастасия Викторовна" class="hero-photo">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Преимущества -->
+    <section class="features">
+        <div class="container">
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">✨</div>
+                    <h3>Индивидуальный подход</h3>
+                    <p>Каждая клиентка уникальна, и я нахожу подход к каждой</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💎</div>
+                    <h3>Качественные материалы</h3>
+                    <p>Только сертифицированные материалы премиум-класса</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⏰</div>
+                    <h3>Удобное время</h3>
+                    <p>Работаю с 10:00 до 20:00, запись в удобное время</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Услуги -->
+    <section class="services" id="services">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Мои услуги</h2>
+                <p class="section-subtitle">Профессиональные услуги красоты</p>
+            </div>
+            <div class="services-grid">
+                <div class="service-card">
+                    <div class="service-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1632345031435-8727f6897d53?w=400&h=300&fit=crop" alt="Маникюр" class="service-image">
+                    </div>
+                    <div class="service-content">
+                        <h3 class="service-name">Маникюр</h3>
+                        <p class="service-description">Идеальный маникюр с покрытием премиум-класса</p>
+                        <div class="service-footer">
+                            <span class="service-price">1500₽</span>
+                            <button class="btn btn-outline book-btn" data-service="manicure">Записаться</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400&h=300&fit=crop" alt="Педикюр" class="service-image">
+                    </div>
+                    <div class="service-content">
+                        <h3 class="service-name">Педикюр</h3>
+                        <p class="service-description">Комплексный уход за ногами с покрытием</p>
+                        <div class="service-footer">
+                            <span class="service-price">2000₽</span>
+                            <button class="btn btn-outline book-btn" data-service="pedicure">Записаться</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1588510883734-31a7e9d8c6f7?w=400&h=300&fit=crop" alt="Брови" class="service-image">
+                    </div>
+                    <div class="service-content">
+                        <h3 class="service-name">Брови</h3>
+                        <p class="service-description">Коррекция и окрашивание бровей</p>
+                        <div class="service-footer">
+                            <span class="service-price">800₽</span>
+                            <button class="btn btn-outline book-btn" data-service="brows">Записаться</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1587574747865-1f0bb8646a1c?w=400&h=300&fit=crop" alt="Ресницы" class="service-image">
+                    </div>
+                    <div class="service-content">
+                        <h3 class="service-name">Ресницы</h3>
+                        <p class="service-description">Наращивание и ламинирование ресниц</p>
+                        <div class="service-footer">
+                            <span class="service-price">1500₽</span>
+                            <button class="btn btn-outline book-btn" data-service="lashes">Записаться</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1487412947132-26c244971044?w=400&h=300&fit=crop" alt="Визаж" class="service-image">
+                    </div>
+                    <div class="service-content">
+                        <h3 class="service-name">Визаж</h3>
+                        <p class="service-description">Профессиональный макияж для любого повода</p>
+                        <div class="service-footer">
+                            <span class="service-price">2000₽</span>
+                            <button class="btn btn-outline book-btn" data-service="makeup">Записаться</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Форма записи -->
+    <section class="booking" id="booking">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Онлайн запись</h2>
+                <p class="section-subtitle">Запишитесь на удобную дату и время</p>
+            </div>
+            <form class="booking-form" id="bookingForm" action="https://formspree.io/f/maqarovr" method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="name">Ваше имя</label>
+                        <input type="text" id="name" name="name" required placeholder="Введите ваше имя">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Телефон</label>
+                        <input type="tel" id="phone" name="phone" required placeholder="+7 (___) ___-__-__">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="service">Услуга</label>
+                        <select id="service" name="service" required>
+                            <option value="">Выберите услугу</option>
+                            <option value="manicure">Маникюр — 1500₽</option>
+                            <option value="pedicure">Педикюр — 2000₽</option>
+                            <option value="brows">Брови — 800₽</option>
+                            <option value="lashes">Ресницы — 1500₽</option>
+                            <option value="makeup">Визаж — 2000₽</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="date">Дата</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="time">Время</label>
+                    <select id="time" name="time" required disabled>
+                        <option value="">Сначала выберите дату и услугу</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full btn-lg">Записаться</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Контакты -->
+    <section class="contacts" id="contacts">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Контакты</h2>
+                <p class="section-subtitle">Я всегда рада видеть вас</p>
+            </div>
+            <div class="contacts-content">
+                <div class="contacts-info">
+                    <div class="contact-item">
+                        <div class="contact-icon-wrapper">
+                            <span class="contact-icon">📍</span>
+                        </div>
+                        <div>
+                            <p class="contact-label">Адрес</p>
+                            <p class="contact-value">г. Екатеринбург, ул. Донбасская, 4</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon-wrapper">
+                            <span class="contact-icon">📞</span>
+                        </div>
+                        <div>
+                            <p class="contact-label">Телефон</p>
+                            <p class="contact-value"><a href="tel:+79502074302">+7 950 207 43 02</a></p>
+                        </div>
+                    </div>
+                    <a href="https://maps.google.com/?q=56.8389,60.6407" target="_blank" class="btn btn-primary btn-full">Открыть в картах</a>
+                </div>
+                <div class="maps-container">
+                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2246.0!2d60.6407!3d56.8389!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNTZcMjAnMjAuMCJOIDYwwrAzOCcyNC41IkU!5e0!3m2!1sru!2sru!4v1234567890" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h3>Анастасия Викторовна</h3>
+                    <p>Мастер красоты</p>
+                </div>
+                <div class="footer-links">
+                    <a href="#services">Услуги</a>
+                    <a href="#booking">Записаться</a>
+                    <a href="#contacts">Контакты</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 Анастасия Викторовна. Все права защищены.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Success Modal -->
+    <div class="modal" id="successModal">
+        <div class="modal-content">
+            <div class="modal-icon">✓</div>
+            <h3>Заявка отправлена!</h3>
+            <p>Мы свяжемся с вами в ближайшее время для подтверждения записи</p>
+            <button class="btn btn-primary btn-full" id="openCalendar">Добавить в календарь</button>
+            <button class="btn btn-secondary btn-full" id="closeModal">Закрыть</button>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
