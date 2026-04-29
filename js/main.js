@@ -50,8 +50,15 @@ document.addEventListener('DOMContentLoaded', function() {
  * Устанавливаем минимальную дату - сегодня
  */
 function initializeDatepicker() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateInputValue(new Date());
     dateInput.setAttribute('min', today);
+}
+
+function getLocalDateInputValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 /**
@@ -148,7 +155,8 @@ function formatPhone(phone) {
  * Форматирование даты для отображения
  */
 function formatDateRU(dateString) {
-    const date = new Date(dateString);
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     const options = { day: 'numeric', month: 'long', year: 'numeric' };
     return date.toLocaleDateString('ru-RU', options);
 }
@@ -194,7 +202,12 @@ function generateCalendarLink(data) {
     
     // Форматирование для Google Calendar (YYYYMMDDTHHMMSS)
     const formatDateTime = (date) => {
-        return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}${month}${day}T${hours}${minutes}00`;
     };
     
     const params = new URLSearchParams({
@@ -203,6 +216,7 @@ function generateCalendarLink(data) {
         dates: `${formatDateTime(eventDate)}/${formatDateTime(endDate)}`,
         details: `Имя: ${data.name}\nТелефон: ${data.phone}`,
         location: 'г. Екатеринбург, ул. Донбасская, 4',
+        ctz: 'Asia/Yekaterinburg',
         sf: 'true',
         output: 'xml'
     });
@@ -261,6 +275,7 @@ bookingForm.addEventListener('submit', async function(e) {
         if (response.ok || result.success) {
             showSuccessModal(formData);
             bookingForm.reset();
+            generateTimeSlots('', '');
         } else {
             alert('Произошла ошибка при отправке. Пожалуйста, позвоните нам.');
         }
@@ -269,6 +284,7 @@ bookingForm.addEventListener('submit', async function(e) {
         // Фоллбэк - показываем модальное окно даже если Formspree не работает
         showSuccessModal(formData);
         bookingForm.reset();
+        generateTimeSlots('', '');
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Записаться';
