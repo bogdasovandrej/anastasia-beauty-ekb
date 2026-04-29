@@ -840,3 +840,102 @@ h1, h2, h3, h4, h5, h6 {
         font-size: 14px;
     }
 }
+
+/* Android/Mobile specific optimizations */
+@media (max-width: 375px) {
+    .hero-title {
+        font-size: 28px;
+    }
+    
+    .hero-subtitle {
+        font-size: 15px;
+    }
+    
+    .section-title {
+        font-size: 24px;
+    }
+    
+    .service-card {
+        padding: 0;
+    }
+    
+    .service-content {
+        padding: 16px;
+    }
+    
+    .service-name {
+        font-size: 18px;
+    }
+    
+    .service-price {
+        font-size: 20px;
+    }
+    
+    .contact-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .contact-icon-wrapper {
+        width: 44px;
+        height: 44px;
+    }
+    
+    .contact-icon {
+        font-size: 20px;
+    }
+    
+    .contact-value {
+        font-size: 16px;
+    }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+    .service-card,
+    .feature-card,
+    .btn {
+        min-height: 44px;
+    }
+    
+    .service-card:active {
+        transform: scale(0.98);
+    }
+    
+    .btn:active {
+        transform: scale(0.98);
+    }
+    
+    .form-group input,
+    .form-group select {
+        font-size: 16px; /* Prevents zoom on iOS/Android */
+    }
+}
+
+/* Landscape mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+    .hero {
+        padding: 60px 0 40px;
+    }
+    
+    .hero-title {
+        font-size: 28px;
+    }
+    
+    .image-frame {
+        max-width: 250px;
+    }
+    
+    .booking-form {
+        padding: 24px 16px;
+    }
+}
+
+/* Prevent text size adjustment on orientation change */
+@media screen and (orientation: portrait) {
+    html {
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+    }
+}
