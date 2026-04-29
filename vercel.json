@@ -3,12 +3,6 @@
   "outputDirectory": ".",
   "installCommand": "echo 'No dependencies'",
   "devCommand": "echo 'No dev server needed'",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
   "headers": [
     {
       "source": "/",
