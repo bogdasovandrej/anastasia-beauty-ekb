@@ -1,27 +1,3 @@
-<<<<<<< HEAD
-# 📸 Инструкция по замене фото на фото мамы
-
-## Где находятся файлы сайта
-
-Ваш сайт находится в папке:
-**`C:\Users\bogda\Desktop\beauty-website\`**
-
-## Как заменить фото мамы
-
-### Шаг 1: Подготовьте фото
-
-1. Возьмите фото мамы из тех, что вы прислали
-2. Скопируйте фото в папку `C:\Users\bogda\Desktop\beauty-website\images\`
-3. Переименуйте фото в `hero.jpg`
-
-### Шаг 2: Обновите HTML
-
-Откройте файл `C:\Users\bogda\Desktop\beauty-website\index.html` в текстовом редакторе.
-
-Найдите строку (примерно строка 55):
-```html
-<img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&h=650&fit=crop" alt="Анастасия Викторовна" class="hero-photo">
-=======
 # 📸 Инструкция по замене изображений
 
 ## Как добавить фото мамы
@@ -41,86 +17,59 @@
 
 ### Шаг 3: Обновите HTML
 Откройте `index.html` и найдите строку:
+
 ```html
 <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&h=750&fit=crop" alt="Анастасия Викторовна" class="hero-photo">
->>>>>>> 3e96500e571d42e960bff1ebc3826e2e3f376447
 ```
 
 Замените на:
+
 ```html
-<img src="images/hero.jpg" alt="Анастасия Викторовна" class="hero-photo">
+<img src="images/hero.jpg" alt="Анастасия Викторовна" class="hero-photo" width="490" height="613">
 ```
 
-<<<<<<< HEAD
-### Шаг 3: Сохраните и проверьте
-
-1. Сохраните файл `index.html`
-2. Откройте `index.html` в браузере
-3. Проверьте, что фото мамы отображается
-
-## Как заменить фото услуг
-
-### Для каждой услуги:
-
-1. Скачайте красивые фото услуг на стоках:
-=======
 ## Как добавить фото услуг
 
 ### Для каждой услуги:
 
 1. Найдите красивые фото на стоках:
->>>>>>> 3e96500e571d42e960bff1ebc3826e2e3f376447
    - [Unsplash - Маникюр](https://unsplash.com/s/photos/manicure)
    - [Unsplash - Педикюр](https://unsplash.com/s/photos/pedicure)
    - [Unsplash - Брови](https://unsplash.com/s/photos/eyebrows)
    - [Unsplash - Ресницы](https://unsplash.com/s/photos/eyelashes)
    - [Unsplash - Макияж](https://unsplash.com/s/photos/makeup)
 
-<<<<<<< HEAD
-2. Скачайте фото и сохраните в папку `C:\Users\bogda\Desktop\beauty-website\images\`:
-=======
 2. Скачайте фото и сохраните в папку `images`:
->>>>>>> 3e96500e571d42e960bff1ebc3826e2e3f376447
-   - `manicure.jpg`
-   - `pedicure.jpg`
-   - `brows.jpg`
-   - `lashes.jpg`
-   - `makeup.jpg`
+   - `manicure-v2.jpg`
+   - `pedicure-v2.jpg`
+   - `brows.png`
+   - `lashes.png`
+   - `makeup-v2.jpg`
 
-<<<<<<< HEAD
-3. Откройте `index.html` и найдите строки с фото услуг (примерно строки 80-120)
-
-4. Замените ссылки на Unsplash на локальные файлы:
-=======
 3. Обновите ссылки в `index.html`:
->>>>>>> 3e96500e571d42e960bff1ebc3826e2e3f376447
 
 ```html
 <!-- Маникюр -->
-<img src="images/manicure.jpg" alt="Маникюр" class="service-image">
+<img src="images/manicure-v2.jpg" alt="Маникюр" class="service-image" width="560" height="420">
 
 <!-- Педикюр -->
-<img src="images/pedicure.jpg" alt="Педикюр" class="service-image">
+<img src="images/pedicure-v2.jpg" alt="Педикюр" class="service-image" width="560" height="420">
 
 <!-- Брови -->
-<img src="images/brows.jpg" alt="Брови" class="service-image">
+<img src="images/brows.png" alt="Брови" class="service-image" width="640" height="497">
 
 <!-- Ресницы -->
-<img src="images/lashes.jpg" alt="Ресницы" class="service-image">
+<img src="images/lashes.png" alt="Ресницы" class="service-image" width="640" height="441">
 
 <!-- Визаж -->
-<img src="images/makeup.jpg" alt="Визаж" class="service-image">
+<img src="images/makeup-v2.jpg" alt="Визаж" class="service-image" width="560" height="420">
 ```
 
 ## Рекомендации по фото
 
 ### Размер и формат
 - **Формат:** JPG или WebP
-<<<<<<< HEAD
-- **Размер Hero:** 500x650px (вертикальное)
-=======
 - **Размер Hero:** 600x750px (вертикальное)
->>>>>>> 3e96500e571d42e960bff1ebc3826e2e3f376447
 - **Размер услуг:** 400x300px (горизонтальное)
 - **Вес:** оптимизируйте до <100KB для каждого фото
 
@@ -129,25 +78,19 @@
 - [Squoosh](https://squoosh.app)
 - [Compressor.io](https://compressor.io)
 
-<<<<<<< HEAD
-=======
 ### Советы
 - Используйте качественные, светлые фото
 - Избегайте слишком темных изображений
 - Фото должны соответствовать минималистичному стилю сайта
 - Лицо должно быть хорошо видно на hero-фото
 
->>>>>>> 3e96500e571d42e960bff1ebc3826e2e3f376447
 ## Быстрая проверка
 
 После замены фото:
 1. Откройте `index.html` в браузере
 2. Проверьте, что все фото отображаются
 3. Убедитесь, что сайт выглядит хорошо на мобильном
-<<<<<<< HEAD
-=======
 4. Проверьте скорость загрузки
->>>>>>> 3e96500e571d42e960bff1ebc3826e2e3f376447
 
 ---
 
