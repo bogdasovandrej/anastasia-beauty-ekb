@@ -5,37 +5,53 @@
  */
 
 // ============================================
-// КОНФИГУРАЦИЯ ГРАФИКА 2-3-2
+// ГРАФИК РАБОТЫ — список рабочих дней
 // ============================================
 
 /**
- * Опорная дата: 25 мая 2026 (понедельник) — рабочий день.
- * Цикл 7 дней: [Р, Р, В, В, В, В, В]
- * Сб (0) и Вс (6) — всегда выходные (override).
+ * Список рабочих дней. Формат: 'YYYY-MM-DD'.
+ * Все дни, которых здесь нет, считаются выходными.
  *
- * Чтобы изменить расписание — поменяй REFERENCE_DATE и/или SCHEDULE_CYCLE.
+ * Чтобы добавить/убрать день — просто отредактируй массив ниже.
  */
-const REFERENCE_DATE = new Date('2026-05-25');
-// true = рабочий, false = выходной. Индекс 0 = опорная дата.
-const SCHEDULE_CYCLE = [true, true, false, false, false, false, false];
+const WORK_DAYS = [
+    // Май 2026
+    '2026-05-25', '2026-05-26',
+
+    // Июнь 2026 (по календарю мастера)
+    '2026-06-03', '2026-06-04',
+    '2026-06-08', '2026-06-12',
+    '2026-06-17', '2026-06-18',
+    '2026-06-22', '2026-06-26',
+    '2026-06-30',
+
+    // Июль 2026 (по календарю мастера)
+    '2026-07-01', '2026-07-02',
+    '2026-07-07', '2026-07-08', '2026-07-09',
+    '2026-07-13', '2026-07-16',
+    '2026-07-21', '2026-07-22', '2026-07-23',
+    '2026-07-27', '2026-07-30', '2026-07-31'
+];
+
+const WORK_DAYS_SET = new Set(WORK_DAYS);
 
 /**
- * Проверяет, является ли дата рабочим днём.
+ * Форматирует дату в строку 'YYYY-MM-DD' (локальное время, без UTC-сдвига).
+ */
+function toIsoDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+/**
+ * Проверяет, является ли дата рабочим днём по списку.
  * @param {Date} date
  * @returns {boolean}
  */
 function isWorkDay(date) {
-    // Сб (6) и Вс (0) — всегда выходной
-    const dow = date.getDay();
-    if (dow === 0 || dow === 6) return false;
-
-    // Нормализуем до полуночи без времени
-    const d   = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const ref = new Date(REFERENCE_DATE.getFullYear(), REFERENCE_DATE.getMonth(), REFERENCE_DATE.getDate());
-
-    const diffDays = Math.round((d - ref) / 86400000);
-    const pos = ((diffDays % SCHEDULE_CYCLE.length) + SCHEDULE_CYCLE.length) % SCHEDULE_CYCLE.length;
-    return SCHEDULE_CYCLE[pos];
+    return WORK_DAYS_SET.has(toIsoDate(date));
 }
 
 // ============================================
