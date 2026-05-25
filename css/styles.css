@@ -1,5 +1,5 @@
 /* ============================================
-   CSS STYLES - Beauty Website Modern
+   CSS STYLES — Студия красоты «Море красок»
    ============================================ */
 
 /* CSS Variables */
@@ -9,25 +9,26 @@
     --color-accent: #d4a5a5;
     --color-accent-hover: #c49595;
     --color-accent-light: #f5e6e6;
+    --color-teal: #5bb8b8;
     --color-text-primary: #2d2d2d;
     --color-text-secondary: #6b6b6b;
     --color-text-light: #999999;
     --color-white: #ffffff;
     --color-border: #e8e8e8;
-    
+
     --font-primary: 'Inter', sans-serif;
     --font-heading: 'Playfair Display', serif;
-    
+
     --border-radius-sm: 8px;
     --border-radius-md: 16px;
     --border-radius-lg: 24px;
     --border-radius-xl: 32px;
-    
+
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
     --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
     --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.15);
-    
+
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: all 0.2s ease;
 }
@@ -112,7 +113,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(212, 165, 165, 0.4);
+    box-shadow: 0 8px 24px rgba(212, 165, 165, 0.45);
 }
 
 .btn-primary:active {
@@ -128,6 +129,18 @@ h1, h2, h3, h4, h5, h6 {
 .btn-secondary:hover {
     border-color: var(--color-accent);
     background-color: var(--color-accent-light);
+}
+
+/* Telegram button */
+.btn-tg {
+    background: linear-gradient(135deg, #2aabee 0%, #229ed9 100%);
+    color: var(--color-white);
+    box-shadow: 0 4px 16px rgba(42, 171, 238, 0.3);
+}
+
+.btn-tg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(42, 171, 238, 0.4);
 }
 
 .btn-outline {
@@ -155,6 +168,12 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 14px;
 }
 
+.btn-call {
+    background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
+    color: var(--color-white);
+    box-shadow: 0 2px 8px rgba(212, 165, 165, 0.3);
+}
+
 /* ============================================
    NAVBAR
    ============================================ */
@@ -178,17 +197,33 @@ h1, h2, h3, h4, h5, h6 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 24px;
+    padding: 14px 24px;
     max-width: 1200px;
     margin: 0 auto;
 }
 
-.logo {
+/* Логотип текстовый */
+.logo-text {
     font-family: var(--font-heading);
     font-size: 22px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    letter-spacing: -0.5px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-teal) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.3px;
+}
+
+/* Логотип изображение (используется когда загружен images/logo.png) */
+.logo-img {
+    height: 44px;
+    object-fit: contain;
+    display: block;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
 }
 
 .nav-links {
@@ -267,6 +302,15 @@ h1, h2, h3, h4, h5, h6 {
     text-align: center;
 }
 
+.hero-brand {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-accent);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+}
+
 .hero-title {
     font-size: clamp(36px, 8vw, 64px);
     margin-bottom: 16px;
@@ -276,15 +320,14 @@ h1, h2, h3, h4, h5, h6 {
 .hero-subtitle {
     font-size: clamp(16px, 3vw, 20px);
     color: var(--color-text-secondary);
-    margin-bottom: 24px;
+    margin-bottom: 12px;
     font-weight: 400;
 }
 
 .hero-tagline {
-    font-size: clamp(16px, 2.5vw, 18px);
+    font-size: clamp(14px, 2.5vw, 16px);
     color: var(--color-text-light);
     margin-bottom: 36px;
-    font-style: italic;
 }
 
 .hero-buttons {
@@ -412,10 +455,6 @@ h1, h2, h3, h4, h5, h6 {
     .services-grid {
         grid-template-columns: repeat(3, 1fr);
     }
-    
-    .service-card:nth-child(4) {
-        grid-column: span 2;
-    }
 }
 
 .service-card {
@@ -425,6 +464,8 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
     border: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
 }
 
 .service-card:hover {
@@ -449,8 +490,37 @@ h1, h2, h3, h4, h5, h6 {
     transform: scale(1.08);
 }
 
+/* CSS-заглушки для услуг без фото */
+.service-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 4/3;
+}
+
+.service-placeholder--color {
+    background: linear-gradient(135deg, #f7e0c8 0%, #e8b08a 40%, #d07090 100%);
+}
+
+.service-placeholder--perm {
+    background: linear-gradient(135deg, #d4e8d0 0%, #88bb88 40%, #558855 100%);
+}
+
+.service-placeholder-icon {
+    font-size: 72px;
+    opacity: 0.75;
+    transition: var(--transition);
+}
+
+.service-card:hover .service-placeholder-icon {
+    transform: scale(1.1);
+}
+
 .service-content {
     padding: 24px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .service-name {
@@ -461,8 +531,14 @@ h1, h2, h3, h4, h5, h6 {
 .service-description {
     font-size: 15px;
     color: var(--color-text-secondary);
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     line-height: 1.5;
+}
+
+.service-duration {
+    font-size: 13px;
+    color: var(--color-text-light);
+    margin-bottom: 16px;
 }
 
 .service-footer {
@@ -470,81 +546,271 @@ h1, h2, h3, h4, h5, h6 {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+    margin-top: auto;
 }
 
 .service-price {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 700;
     color: var(--color-accent);
     font-family: var(--font-heading);
+    white-space: nowrap;
+}
+
+.service-price--request {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-light);
 }
 
 /* ============================================
-   BOOKING SECTION
+   SCHEDULE SECTION (Запись и Календарь)
    ============================================ */
-.booking {
+.schedule {
     padding: 100px 0;
     background: linear-gradient(135deg, var(--color-accent-light) 0%, var(--color-bg) 100%);
 }
 
-.booking-form {
-    max-width: 600px;
-    margin: 0 auto;
-    background-color: var(--color-bg-secondary);
-    padding: 40px;
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--shadow-lg);
-}
-
-.form-row {
+.schedule-content {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 40px;
 }
 
-@media (min-width: 640px) {
-    .form-row {
+@media (min-width: 900px) {
+    .schedule-content {
         grid-template-columns: 1fr 1fr;
+        align-items: start;
     }
 }
 
-.form-group {
-    margin-bottom: 24px;
+/* --- Виджет календаря --- */
+.calendar-widget {
+    background: var(--color-bg-secondary);
+    border-radius: var(--border-radius-lg);
+    padding: 28px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border);
 }
 
-.form-group label {
-    display: block;
-    font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 8px;
-    color: var(--color-text-primary);
+.calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 12px;
 }
 
-.form-group input,
-.form-group select {
-    width: 100%;
-    padding: 14px 18px;
-    font-family: var(--font-primary);
-    font-size: 16px;
+.calendar-month-title {
+    font-size: 18px;
+    font-family: var(--font-heading);
+    color: var(--color-accent);
+    text-align: center;
+    flex: 1;
+}
+
+.calendar-nav {
+    background: none;
     border: 2px solid var(--color-border);
     border-radius: var(--border-radius-sm);
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: var(--transition);
-    background-color: var(--color-bg);
     color: var(--color-text-primary);
+    flex-shrink: 0;
+    user-select: none;
 }
 
-.form-group input:focus,
-.form-group select:focus {
-    outline: none;
+.calendar-nav:hover {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 4px rgba(212, 165, 165, 0.15);
+    background: var(--color-accent-light);
+    color: var(--color-accent);
 }
 
-.form-group input:disabled,
-.form-group select:disabled {
-    background-color: #f5f5f5;
-    cursor: not-allowed;
+.calendar-nav:active {
+    transform: scale(0.95);
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+.calendar-weekdays span {
+    font-size: 11px;
+    font-weight: 700;
     color: var(--color-text-light);
+    padding: 4px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.calendar-weekdays span.weekend {
+    color: var(--color-accent);
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+}
+
+.calendar-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition-fast);
+    cursor: default;
+    min-width: 0;
+}
+
+/* Рабочий день */
+.calendar-cell.work {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+/* Выходной */
+.calendar-cell.off {
+    background-color: #fff8e1;
+    color: #e65100;
+}
+
+/* Сегодня */
+.calendar-cell.today {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+    font-weight: 800;
+}
+
+/* Прошедшие дни */
+.calendar-cell.past {
+    opacity: 0.45;
+}
+
+/* Дни другого месяца */
+.calendar-cell.other-month {
+    opacity: 0.2;
+    background: transparent;
+    color: var(--color-text-light);
+}
+
+/* Легенда */
+.calendar-legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+.legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.legend-dot.legend-work {
+    background-color: #e8f5e9;
+    border: 1.5px solid #2e7d32;
+}
+
+.legend-dot.legend-off {
+    background-color: #fff8e1;
+    border: 1.5px solid #e65100;
+}
+
+/* Статус сегодня */
+.calendar-today-status {
+    text-align: center;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-top: 14px;
+    line-height: 1.7;
+}
+
+/* --- Правая колонка: контакты для записи --- */
+.schedule-contacts {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.schedule-info-block {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.schedule-info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: var(--color-bg-secondary);
+    padding: 18px 20px;
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+}
+
+.schedule-info-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    line-height: 1;
+    padding-top: 2px;
+}
+
+.schedule-info-label {
+    font-size: 12px;
+    color: var(--color-text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.schedule-info-value {
+    font-size: 17px;
+    color: var(--color-text-primary);
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.schedule-note {
+    text-align: center;
+    font-size: 15px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    padding: 0 8px;
+}
+
+.schedule-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 /* ============================================
@@ -571,7 +837,7 @@ h1, h2, h3, h4, h5, h6 {
 .contacts-info {
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: 24px;
 }
 
 .contact-item {
@@ -619,16 +885,48 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--color-accent);
 }
 
+/* Карточка-карта */
 .maps-container {
     border-radius: var(--border-radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-md);
-    height: 400px;
+    min-height: 300px;
 }
 
-.maps-container iframe {
+.map-fallback {
     width: 100%;
     height: 100%;
+    min-height: 300px;
+    background: linear-gradient(135deg, var(--color-accent-light) 0%, #e8f0f0 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+}
+
+.map-fallback-inner {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.map-icon {
+    font-size: 56px;
+}
+
+.map-area-title {
+    font-family: var(--font-heading);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.map-address-text {
+    font-size: 17px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
 }
 
 /* ============================================
@@ -654,21 +952,36 @@ h1, h2, h3, h4, h5, h6 {
     }
 }
 
-.footer-brand h3 {
-    font-size: 24px;
-    margin-bottom: 8px;
-    color: var(--color-white);
-}
-
 .footer-brand p {
     font-size: 15px;
     color: var(--color-text-light);
+    margin-top: 6px;
+}
+
+/* Логотип в footer — текстовый */
+.footer-logo-text {
+    font-family: var(--font-heading);
+    font-size: 24px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-teal) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Логотип в footer — изображение */
+.footer-logo-img {
+    height: 40px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+    opacity: 0.85;
 }
 
 .footer-links {
     display: flex;
     gap: 32px;
     justify-content: flex-end;
+    flex-wrap: wrap;
 }
 
 .footer-links a {
@@ -694,200 +1007,123 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ============================================
-   MODAL
-   ============================================ */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: 2000;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    animation: fadeIn 0.2s ease-out;
-}
-
-.modal.active {
-    display: flex;
-}
-
-.modal-content {
-    background-color: var(--color-bg-secondary);
-    padding: 48px 40px;
-    border-radius: var(--border-radius-lg);
-    text-align: center;
-    max-width: 450px;
-    width: 100%;
-    box-shadow: var(--shadow-xl);
-    animation: slideUp 0.3s ease-out;
-}
-
-.modal-icon {
-    width: 80px;
-    height: 80px;
-    background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 24px;
-    font-size: 40px;
-    color: var(--color-white);
-    box-shadow: 0 8px 24px rgba(212, 165, 165, 0.4);
-}
-
-.modal-content h3 {
-    font-size: 26px;
-    margin-bottom: 12px;
-}
-
-.modal-content p {
-    color: var(--color-text-secondary);
-    margin-bottom: 28px;
-    font-size: 16px;
-}
-
-.modal-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-/* ============================================
    ANIMATIONS
    ============================================ */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 @keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(40px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ============================================
    RESPONSIVE DESIGN
    ============================================ */
 
-/* Tablet */
+/* Tablet — Hero two-column */
 @media (min-width: 768px) {
     .hero-container {
         grid-template-columns: 1fr 1fr;
     }
-    
+
     .hero-content {
         text-align: left;
     }
-    
+
+    .hero-brand {
+        text-align: left;
+    }
+
     .hero-buttons {
         justify-content: flex-start;
     }
-    
+
     .hero-image {
-        text-align: center;
+        justify-content: center;
     }
 }
 
-/* Mobile optimizations */
+/* Small mobile */
 @media (max-width: 480px) {
     .container {
         padding: 0 16px;
     }
-    
+
     .hero {
         padding: 100px 0 60px;
     }
-    
+
     .services,
-    .booking,
+    .schedule,
     .contacts {
         padding: 60px 0;
     }
-    
-    .booking-form {
-        padding: 28px 20px;
-    }
-    
+
     .btn {
-        padding: 12px 24px;
+        padding: 12px 20px;
         font-size: 14px;
+    }
+
+    .calendar-widget {
+        padding: 18px 14px;
+    }
+
+    .calendar-cell {
+        font-size: 12px;
     }
 }
 
-/* Android/Mobile specific optimizations */
+/* Very small mobile */
 @media (max-width: 375px) {
     .hero-title {
         font-size: 28px;
     }
-    
+
     .hero-subtitle {
         font-size: 15px;
     }
-    
+
     .section-title {
         font-size: 24px;
     }
-    
-    .service-card {
-        padding: 0;
-    }
-    
+
     .service-content {
         padding: 16px;
     }
-    
+
     .service-name {
         font-size: 18px;
     }
-    
+
     .service-price {
-        font-size: 20px;
+        font-size: 18px;
     }
-    
+
     .contact-item {
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
     }
-    
+
     .contact-icon-wrapper {
         width: 44px;
         height: 44px;
     }
-    
+
     .contact-icon {
         font-size: 20px;
     }
-    
+
     .contact-value {
         font-size: 16px;
+    }
+
+    .calendar-cell {
+        font-size: 11px;
+        border-radius: 4px;
     }
 }
 
@@ -898,18 +1134,17 @@ h1, h2, h3, h4, h5, h6 {
     .btn {
         min-height: 44px;
     }
-    
+
     .service-card:active {
         transform: scale(0.98);
     }
-    
+
     .btn:active {
-        transform: scale(0.98);
+        transform: scale(0.97);
     }
-    
-    .form-group input,
-    .form-group select {
-        font-size: 16px; /* Prevents zoom on iOS/Android */
+
+    .calendar-nav:active {
+        background: var(--color-accent-light);
     }
 }
 
@@ -918,21 +1153,17 @@ h1, h2, h3, h4, h5, h6 {
     .hero {
         padding: 60px 0 40px;
     }
-    
+
     .hero-title {
         font-size: 28px;
     }
-    
+
     .image-frame {
         max-width: 250px;
     }
-    
-    .booking-form {
-        padding: 24px 16px;
-    }
 }
 
-/* Prevent text size adjustment on orientation change */
+/* Prevent text size adjustment */
 @media screen and (orientation: portrait) {
     html {
         -webkit-text-size-adjust: 100%;

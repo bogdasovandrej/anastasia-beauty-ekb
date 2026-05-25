@@ -1,317 +1,220 @@
 /**
- * Beauty Website - Main JavaScript
- * =================================
+ * Студия красоты «Море красок» — Main JavaScript
+ * ================================================
+ * Визуальный календарь графика работы + плавная навигация
  */
 
-// Конфигурация услуг и их длительности (в минутах)
-const serviceDurations = {
-    'manicure': 120,    // Маникюр - 2 часа
-    'pedicure': 150,    // Педикюр - 2.5 часа
-    'brows': 60,        // Брови - 1 час
-    'lashes': 90,       // Ресницы - 1.5 часа
-    'makeup': 120       // Визаж - 2 часа
-};
-
-// Названия услуг для отображения
-const serviceNames = {
-    'manicure': 'Маникюр',
-    'pedicure': 'Педикюр',
-    'brows': 'Брови',
-    'lashes': 'Ресницы',
-    'makeup': 'Визаж'
-};
-
-// Время работы мастера
-const workHours = {
-    start: 10,  // 10:00
-    end: 20     // 20:00
-};
-
-// DOM элементы
-const bookingForm = document.getElementById('bookingForm');
-const serviceSelect = document.getElementById('service');
-const dateInput = document.getElementById('date');
-const timeSelect = document.getElementById('time');
-const successModal = document.getElementById('successModal');
-const openCalendarBtn = document.getElementById('openCalendar');
-const closeModalBtn = document.getElementById('closeModal');
-
-// Данные последней заявки
-let lastBookingData = null;
-
-// Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', function() {
-    initializeDatepicker();
-    initializeBookButtons();
-});
+// ============================================
+// КОНФИГУРАЦИЯ ГРАФИКА 2-3-2
+// ============================================
 
 /**
- * Инициализация календаря
- * Устанавливаем минимальную дату - сегодня
+ * Опорная дата: 25 мая 2026 (понедельник) — рабочий день.
+ * Цикл 7 дней: [Р, Р, В, В, В, В, В]
+ * Сб (0) и Вс (6) — всегда выходные (override).
+ *
+ * Чтобы изменить расписание — поменяй REFERENCE_DATE и/или SCHEDULE_CYCLE.
  */
-function initializeDatepicker() {
-    const today = getLocalDateInputValue(new Date());
-    dateInput.setAttribute('min', today);
+const REFERENCE_DATE = new Date('2026-05-25');
+// true = рабочий, false = выходной. Индекс 0 = опорная дата.
+const SCHEDULE_CYCLE = [true, true, false, false, false, false, false];
+
+/**
+ * Проверяет, является ли дата рабочим днём.
+ * @param {Date} date
+ * @returns {boolean}
+ */
+function isWorkDay(date) {
+    // Сб (6) и Вс (0) — всегда выходной
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) return false;
+
+    // Нормализуем до полуночи без времени
+    const d   = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const ref = new Date(REFERENCE_DATE.getFullYear(), REFERENCE_DATE.getMonth(), REFERENCE_DATE.getDate());
+
+    const diffDays = Math.round((d - ref) / 86400000);
+    const pos = ((diffDays % SCHEDULE_CYCLE.length) + SCHEDULE_CYCLE.length) % SCHEDULE_CYCLE.length;
+    return SCHEDULE_CYCLE[pos];
 }
 
-function getLocalDateInputValue(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+// ============================================
+// ДАННЫЕ ДЛЯ ОТОБРАЖЕНИЯ
+// ============================================
+
+const MONTHS_RU = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+];
+
+const MONTHS_RU_GENITIVE = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+];
+
+const WEEKDAYS_RU = [
+    'воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'
+];
+
+// ============================================
+// КАЛЕНДАРЬ
+// ============================================
+
+let currentCalendarDate = new Date();
+
+/**
+ * Отрисовывает календарь для указанного месяца/года.
+ * @param {Date} date
+ */
+function renderCalendar(date) {
+    const year  = date.getFullYear();
+    const month = date.getMonth();
+
+    // Заголовок
+    const titleEl = document.getElementById('calendarTitle');
+    if (titleEl) titleEl.textContent = `${MONTHS_RU[month]} ${year}`;
+
+    const grid = document.getElementById('calendarGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Первый день месяца: getDay() → 0=Вс…6=Сб, переводим в 0=Пн…6=Вс
+    const firstDay = new Date(year, month, 1);
+    const startOffset = (firstDay.getDay() + 6) % 7;
+
+    // Дни предыдущего месяца (серые заглушки)
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    for (let i = startOffset - 1; i >= 0; i--) {
+        const d = new Date(year, month - 1, daysInPrevMonth - i);
+        grid.appendChild(createDayCell(d, today, true));
+    }
+
+    // Дни текущего месяца
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+        const cellDate = new Date(year, month, d);
+        grid.appendChild(createDayCell(cellDate, today, false));
+    }
+
+    // Дни следующего месяца (серые заглушки), чтобы заполнить последнюю строку
+    const totalCells = grid.children.length;
+    const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    for (let d = 1; d <= remaining; d++) {
+        const nd = new Date(year, month + 1, d);
+        grid.appendChild(createDayCell(nd, today, true));
+    }
+
+    // Статус сегодня
+    updateTodayStatus(today);
 }
 
 /**
- * Инициализация кнопок "Записаться" в карточках услуг
+ * Создаёт ячейку дня в сетке календаря.
  */
-function initializeBookButtons() {
-    const bookButtons = document.querySelectorAll('.book-btn');
-    bookButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const service = this.getAttribute('data-service');
-            serviceSelect.value = service;
-            
-            // Прокрутка к форме
-            document.getElementById('booking').scrollIntoView({ 
-                behavior: 'smooth',
-                block: 'start'
-            });
-            
-            // Автоматический выбор услуги в форме
-            generateTimeSlots(service, dateInput.value);
+function createDayCell(date, today, isOtherMonth) {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-cell';
+    cell.textContent = date.getDate();
+
+    const isToday  = date.getTime() === today.getTime();
+    const isPast   = date < today && !isToday;
+    const isWork   = isWorkDay(date);
+
+    if (isOtherMonth) {
+        cell.classList.add('other-month');
+    } else {
+        cell.classList.add(isWork ? 'work' : 'off');
+        if (isPast) cell.classList.add('past');
+    }
+
+    if (isToday) cell.classList.add('today');
+
+    // Подсказка при наведении (для десктопа)
+    if (!isOtherMonth) {
+        const dayName = WEEKDAYS_RU[date.getDay()];
+        const statusText = isWork ? 'Рабочий день' : 'Выходной';
+        cell.title = `${date.getDate()} ${MONTHS_RU_GENITIVE[date.getMonth()]} — ${dayName}, ${statusText}`;
+    }
+
+    return cell;
+}
+
+/**
+ * Обновляет строку «Сегодня, ... — Рабочий/Выходной».
+ */
+function updateTodayStatus(today) {
+    const todayEl = document.getElementById('calendarToday');
+    if (!todayEl) return;
+
+    const dayName  = WEEKDAYS_RU[today.getDay()];
+    const dateStr  = `${today.getDate()} ${MONTHS_RU_GENITIVE[today.getMonth()]}`;
+    const isWork   = isWorkDay(today);
+    const statusText = isWork ? '✓ Рабочий день' : '✕ Выходной';
+    const statusColor = isWork ? '#2e7d32' : '#f57f17';
+
+    todayEl.innerHTML =
+        `Сегодня, ${dateStr} — ${dayName}<br>` +
+        `<strong style="color:${statusColor}">${statusText}</strong>`;
+}
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    // Инициализируем календарь
+    const prevBtn = document.getElementById('prevMonth');
+    const nextBtn = document.getElementById('nextMonth');
+
+    if (prevBtn && nextBtn) {
+        prevBtn.addEventListener('click', function () {
+            currentCalendarDate = new Date(
+                currentCalendarDate.getFullYear(),
+                currentCalendarDate.getMonth() - 1,
+                1
+            );
+            renderCalendar(currentCalendarDate);
         });
-    });
-}
 
-/**
- * Генерация слотов времени для выбранной услуги и даты
- */
-function generateTimeSlots(service, date) {
-    if (!service || !date) {
-        timeSelect.innerHTML = '<option value="">Сначала выберите услугу и дату</option>';
-        timeSelect.disabled = true;
-        return;
-    }
-    
-    const duration = serviceDurations[service];
-    const slots = [];
-    
-    // Генерация слотов с учетом длительности услуги
-    for (let hour = workHours.start; hour < workHours.end; hour++) {
-        // Основной слот (например, 10:00)
-        const timeString = `${hour.toString().padStart(2, '0')}:00`;
-        slots.push(timeString);
-        
-        // Дополнительный слот для услуг длительностью 1 час (например, 10:30)
-        if (duration === 60) {
-            slots.push(`${hour.toString().padStart(2, '0')}:30`);
-        }
-    }
-    
-    // Обновляем select
-    timeSelect.innerHTML = '<option value="">Выберите время</option>';
-    slots.forEach(slot => {
-        const option = document.createElement('option');
-        option.value = slot;
-        option.textContent = slot;
-        timeSelect.appendChild(option);
-    });
-    
-    timeSelect.disabled = false;
-}
-
-/**
- * Обработчик изменения услуги
- */
-serviceSelect.addEventListener('change', function() {
-    generateTimeSlots(this.value, dateInput.value);
-});
-
-/**
- * Обработчик изменения даты
- */
-dateInput.addEventListener('change', function() {
-    generateTimeSlots(serviceSelect.value, this.value);
-});
-
-/**
- * Форматирование телефона
- */
-function formatPhone(phone) {
-    // Удаляем все нецифровые символы
-    const cleaned = phone.replace(/\D/g, '');
-    
-    // Форматируем как +7 (XXX) XXX-XX-XX
-    if (cleaned.length === 11 && cleaned.startsWith('7')) {
-        return `+7 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7, 9)}-${cleaned.slice(9, 11)}`;
-    } else if (cleaned.length === 10) {
-        return `+7 (${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 8)}-${cleaned.slice(8, 10)}`;
-    }
-    
-    return phone;
-}
-
-/**
- * Форматирование даты для отображения
- */
-function formatDateRU(dateString) {
-    const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const options = { day: 'numeric', month: 'long', year: 'numeric' };
-    return date.toLocaleDateString('ru-RU', options);
-}
-
-/**
- * Показ модального окна успеха
- */
-function showSuccessModal(data) {
-    lastBookingData = data;
-    successModal.classList.add('active');
-}
-
-/**
- * Закрытие модального окна
- */
-closeModalBtn.addEventListener('click', function() {
-    successModal.classList.remove('active');
-});
-
-/**
- * Генерация и открытие ссылки Google Calendar
- */
-openCalendarBtn.addEventListener('click', function() {
-    if (!lastBookingData) return;
-    
-    const data = lastBookingData;
-    const calendarLink = generateCalendarLink(data);
-    
-    window.open(calendarLink, '_blank');
-});
-
-/**
- * Генерация ссылки Google Calendar
- */
-function generateCalendarLink(data) {
-    // Парсим дату и время
-    const [year, month, day] = data.date.split('-').map(Number);
-    const [hours, minutes] = data.time.split(':').map(Number);
-    
-    const eventDate = new Date(year, month - 1, day, hours, minutes);
-    const duration = serviceDurations[data.service];
-    const endDate = new Date(eventDate.getTime() + duration * 60000);
-    
-    // Форматирование для Google Calendar (YYYYMMDDTHHMMSS)
-    const formatDateTime = (date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${year}${month}${day}T${hours}${minutes}00`;
-    };
-    
-    const params = new URLSearchParams({
-        action: 'TEMPLATE',
-        text: `Запись на ${data.serviceName}`,
-        dates: `${formatDateTime(eventDate)}/${formatDateTime(endDate)}`,
-        details: `Имя: ${data.name}\nТелефон: ${data.phone}`,
-        location: 'г. Екатеринбург, ул. Донбасская, 4',
-        ctz: 'Asia/Yekaterinburg',
-        sf: 'true',
-        output: 'xml'
-    });
-    
-    return `https://calendar.google.com/calendar/render?${params.toString()}`;
-}
-
-/**
- * Обработка отправки формы на Formspree
- */
-bookingForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    // Сбор данных формы
-    const formData = {
-        name: document.getElementById('name').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-        service: serviceSelect.value,
-        serviceName: serviceNames[serviceSelect.value],
-        date: dateInput.value,
-        time: timeSelect.value
-    };
-    
-    // Валидация
-    if (!formData.name || !formData.phone || !formData.service || !formData.date || !formData.time) {
-        alert('Пожалуйста, заполните все поля');
-        return;
-    }
-    
-    // Форматирование телефона
-    const formattedPhone = formatPhone(formData.phone);
-    
-    // Отправка на Formspree
-    const submitBtn = bookingForm.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Отправка...';
-    
-    try {
-        const response = await fetch(bookingForm.action, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                name: formData.name,
-                phone: formattedPhone,
-                service: formData.serviceName,
-                date: formatDateRU(formData.date),
-                time: formData.time
-            })
+        nextBtn.addEventListener('click', function () {
+            currentCalendarDate = new Date(
+                currentCalendarDate.getFullYear(),
+                currentCalendarDate.getMonth() + 1,
+                1
+            );
+            renderCalendar(currentCalendarDate);
         });
-        
-        const result = await response.json();
-        
-        if (response.ok || result.success) {
-            showSuccessModal(formData);
-            bookingForm.reset();
-            generateTimeSlots('', '');
-        } else {
-            alert('Произошла ошибка при отправке. Пожалуйста, позвоните нам.');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        // Фоллбэк - показываем модальное окно даже если Formspree не работает
-        showSuccessModal(formData);
-        bookingForm.reset();
-        generateTimeSlots('', '');
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Записаться';
-    }
-});
 
-/**
- * Обработка клика вне модального окна для закрытия
- */
-successModal.addEventListener('click', function(e) {
-    if (e.target === successModal) {
-        successModal.classList.remove('active');
+        renderCalendar(currentCalendarDate);
     }
+
+    // Эффект тени при прокрутке navbar
+    const navbar = document.querySelector('.navbar');
+    if (navbar) {
+        window.addEventListener('scroll', function () {
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        }, { passive: true });
+    }
+
 });
 
 // Плавная прокрутка для якорных ссылок
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
+document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {
+    anchor.addEventListener('click', function (e) {
         const href = this.getAttribute('href');
-        if (href !== '#') {
-            e.preventDefault();
+        if (href && href !== '#') {
             const target = document.querySelector(href);
             if (target) {
-                target.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start'
-                });
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
     });
