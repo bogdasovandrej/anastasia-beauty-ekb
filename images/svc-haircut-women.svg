@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="420" viewBox="0 0 560 420">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fffbf0"/>
+      <stop offset="100%" style="stop-color:#f5e8c0"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d4a843"/>
+      <stop offset="100%" style="stop-color:#b88a30"/>
+    </linearGradient>
+  </defs>
+  <rect width="560" height="420" fill="url(#bg)"/>
+  <circle cx="280" cy="185" r="130" fill="white" opacity="0.35"/>
+  <circle cx="280" cy="185" r="105" fill="url(#accent)" opacity="0.1"/>
+  <!-- Силуэт головы -->
+  <ellipse cx="280" cy="160" rx="55" ry="65" fill="#f5e0c8" opacity="0.9"/>
+  <!-- Волосы (боб) -->
+  <path d="M225 125 Q218 95 240 78 Q260 62 280 65 Q300 62 320 78 Q342 95 335 125 Q322 110 280 108 Q238 110 225 125 Z" fill="#d4a843" opacity="0.9"/>
+  <path d="M226 127 Q215 160 220 195 Q226 210 238 215 Q228 170 230 140 Z" fill="#d4a843" opacity="0.85"/>
+  <path d="M334 127 Q345 160 340 195 Q334 210 322 215 Q332 170 330 140 Z" fill="#d4a843" opacity="0.85"/>
+  <!-- Ножницы -->
+  <g transform="translate(340,220) rotate(-30)">
+    <circle cx="0" cy="0" r="10" fill="none" stroke="#b88a30" stroke-width="3" opacity="0.9"/>
+    <circle cx="22" cy="0" r="10" fill="none" stroke="#b88a30" stroke-width="3" opacity="0.9"/>
+    <line x1="8" y1="6" x2="55" y2="35" stroke="#b88a30" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+    <line x1="14" y1="-3" x2="55" y2="-28" stroke="#b88a30" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+  </g>
+  <!-- Декор -->
+  <circle cx="150" cy="120" r="22" fill="#d4a843" opacity="0.1"/>
+  <circle cx="420" cy="240" r="28" fill="#b88a30" opacity="0.08"/>
+  <circle cx="165" cy="285" r="13" fill="#d4a843" opacity="0.12"/>
+  <circle cx="410" cy="115" r="16" fill="#b88a30" opacity="0.1"/>
+  <!-- Нижняя полоса -->
+  <rect x="0" y="360" width="560" height="60" fill="white" opacity="0.6"/>
+  <rect x="0" y="358" width="560" height="3" fill="url(#accent)" opacity="0.55"/>
+  <text x="280" y="398" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="20" fill="#b88a30" font-weight="bold" letter-spacing="1.5">Женская стрижка</text>
+</svg>

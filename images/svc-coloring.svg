@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="420" viewBox="0 0 560 420">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f0fbfb"/>
+      <stop offset="100%" style="stop-color:#c8eeec"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5ec4c0"/>
+      <stop offset="100%" style="stop-color:#3a8fb5"/>
+    </linearGradient>
+    <linearGradient id="strand1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8737a"/>
+      <stop offset="100%" style="stop-color:#c94f6d"/>
+    </linearGradient>
+    <linearGradient id="strand2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9b5de5"/>
+      <stop offset="100%" style="stop-color:#7040b0"/>
+    </linearGradient>
+    <linearGradient id="strand3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8a87c"/>
+      <stop offset="100%" style="stop-color:#d4845a"/>
+    </linearGradient>
+  </defs>
+  <rect width="560" height="420" fill="url(#bg)"/>
+  <circle cx="280" cy="185" r="130" fill="white" opacity="0.35"/>
+  <circle cx="280" cy="185" r="105" fill="url(#accent)" opacity="0.12"/>
+  <!-- Пряди волос -->
+  <path d="M200 90 Q180 140 190 210 Q200 250 215 270 Q220 200 225 150 Q228 120 220 95 Z" fill="url(#strand1)" opacity="0.85"/>
+  <path d="M230 82 Q215 135 222 200 Q228 245 240 265 Q248 195 250 145 Q252 112 242 87 Z" fill="url(#strand2)" opacity="0.8"/>
+  <path d="M260 80 Q248 130 252 195 Q256 240 265 262 Q275 192 275 145 Q275 110 267 84 Z" fill="url(#accent)" opacity="0.9"/>
+  <path d="M290 80 Q280 130 282 195 Q284 240 292 262 Q305 190 304 144 Q304 108 296 83 Z" fill="url(#strand3)" opacity="0.85"/>
+  <path d="M320 82 Q313 132 318 196 Q322 242 330 264 Q345 192 342 146 Q340 110 328 85 Z" fill="url(#strand1)" opacity="0.75"/>
+  <path d="M348 90 Q344 138 350 200 Q355 246 362 268 Q378 196 374 150 Q370 114 356 92 Z" fill="url(#strand2)" opacity="0.7"/>
+  <!-- Кисть -->
+  <rect x="385" y="155" width="11" height="70" rx="5" fill="#5ec4c0" transform="rotate(-25 390 190)"/>
+  <rect x="386" y="222" width="9" height="25" rx="3" fill="#c8eeec" transform="rotate(-25 390 235)"/>
+  <path d="M384 244 Q390 252 397 260 Q390 265 384 260 Z" fill="url(#strand1)" transform="rotate(-25 390 252)"/>
+  <!-- Декор -->
+  <circle cx="148" cy="130" r="22" fill="#5ec4c0" opacity="0.12"/>
+  <circle cx="415" cy="110" r="18" fill="#3a8fb5" opacity="0.12"/>
+  <circle cx="160" cy="290" r="14" fill="#e8737a" opacity="0.12"/>
+  <circle cx="420" cy="270" r="20" fill="#9b5de5" opacity="0.1"/>
+  <!-- Нижняя полоса -->
+  <rect x="0" y="360" width="560" height="60" fill="white" opacity="0.6"/>
+  <rect x="0" y="358" width="560" height="3" fill="url(#accent)" opacity="0.6"/>
+  <text x="280" y="398" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="20" fill="#3a8fb5" font-weight="bold" letter-spacing="1.5">Окрашивание волос</text>
+</svg>
