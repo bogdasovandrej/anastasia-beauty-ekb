@@ -143,6 +143,18 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 8px 24px rgba(42, 171, 238, 0.4);
 }
 
+/* WhatsApp button */
+.btn-wa {
+    background: linear-gradient(135deg, #34c85a 0%, #25a244 100%);
+    color: var(--color-white);
+    box-shadow: 0 4px 16px rgba(37, 211, 102, 0.3);
+}
+
+.btn-wa:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(37, 211, 102, 0.4);
+}
+
 .btn-outline {
     background-color: transparent;
     color: var(--color-accent);

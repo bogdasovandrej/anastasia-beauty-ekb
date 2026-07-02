@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://anastasia-beauty-ekb.ru/sitemap.xml
+Sitemap: https://more-krasok.ru/sitemap.xml
