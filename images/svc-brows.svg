@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="420" viewBox="0 0 560 420">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fdf8f0"></stop>
+      <stop offset="100%" style="stop-color:#f0e0c0"></stop>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#b8965c"></stop>
+      <stop offset="100%" style="stop-color:#8a6a38"></stop>
+    </linearGradient>
+  </defs>
+  <rect width="560" height="420" fill="url(#bg)"></rect>
+  <circle cx="280" cy="185" r="130" fill="white" opacity="0.35"></circle>
+  <circle cx="280" cy="185" r="105" fill="url(#accent)" opacity="0.1"></circle>
+  
+  <ellipse cx="280" cy="190" rx="80" ry="95" fill="#f5e8d5" opacity="0.7"></ellipse>
+  
+  <path d="M210 148 Q230 132 258 138 Q240 136 218 152 Z" fill="#6b4a2a" opacity="0.9"></path>
+  <path d="M210 148 Q230 130 258 138" fill="none" stroke="#6b4a2a" stroke-width="7" stroke-linecap="round" opacity="0.85"></path>
+  
+  <path d="M302 138 Q330 132 350 148" fill="none" stroke="#6b4a2a" stroke-width="7" stroke-linecap="round" opacity="0.85"></path>
+  
+  <path d="M218 172 Q235 160 252 172 Q235 184 218 172 Z" fill="#5b3a2a" opacity="0.75"></path>
+  <path d="M308 172 Q325 160 342 172 Q325 184 308 172 Z" fill="#5b3a2a" opacity="0.75"></path>
+  <circle cx="235" cy="172" r="5" fill="#2a1a0a" opacity="0.85"></circle>
+  <circle cx="325" cy="172" r="5" fill="#2a1a0a" opacity="0.85"></circle>
+  <circle cx="233" cy="170" r="2" fill="white" opacity="0.8"></circle>
+  <circle cx="323" cy="170" r="2" fill="white" opacity="0.8"></circle>
+  
+  <line x1="220" y1="165" x2="217" y2="158" stroke="#2a1a0a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"></line>
+  <line x1="228" y1="162" x2="226" y2="155" stroke="#2a1a0a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"></line>
+  <line x1="236" y1="161" x2="235" y2="154" stroke="#2a1a0a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"></line>
+  <line x1="244" y1="162" x2="244" y2="155" stroke="#2a1a0a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"></line>
+  <line x1="310" y1="165" x2="307" y2="158" stroke="#2a1a0a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"></line>
+  <line x1="318" y1="162" x2="316" y2="155" stroke="#2a1a0a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"></line>
+  <line x1="326" y1="161" x2="325" y2="154" stroke="#2a1a0a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"></line>
+  <line x1="334" y1="162" x2="334" y2="155" stroke="#2a1a0a" stroke-width="1.5" stroke-linecap="round" opacity="0.7"></line>
+  
+  <path d="M275 200 Q270 218 278 222 Q282 223 287 222 Q295 218 285 200" fill="none" stroke="#c8a088" stroke-width="2" stroke-linecap="round" opacity="0.5"></path>
+  
+  <path d="M258 248 Q280 240 302 248 Q280 260 258 248 Z" fill="#e8737a" opacity="0.6"></path>
+  <path d="M258 248 Q280 256 302 248" fill="none" stroke="#e8737a" stroke-width="1.5" opacity="0.5"></path>
+  
+  <rect x="375" y="145" width="7" height="80" rx="3.5" fill="#b8965c" opacity="0.85" transform="rotate(-15 378 185)"></rect>
+  <rect x="376" y="220" width="5" height="20" rx="2" fill="#d4b06a" opacity="0.7" transform="rotate(-15 378 230)"></rect>
+  
+  <circle cx="148" cy="115" r="24" fill="#b8965c" opacity="0.1"></circle>
+  <circle cx="420" cy="250" r="28" fill="#8a6a38" opacity="0.08"></circle>
+  <circle cx="160" cy="295" r="13" fill="#b8965c" opacity="0.12"></circle>
+  <circle cx="415" cy="110" r="17" fill="#8a6a38" opacity="0.1"></circle>
+  
+  <rect x="0" y="360" width="560" height="60" fill="white" opacity="0.6"></rect>
+  <rect x="0" y="358" width="560" height="3" fill="url(#accent)" opacity="0.55"></rect>
+  <text x="280" y="398" text-anchor="middle" font-family="Georgia, &#39;Times New Roman&#39;, serif" font-size="20" fill="#8a6a38" font-weight="bold" letter-spacing="1.5">Брови</text>
+</svg>

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#faf7f4">
+<title>Море красок · Концепт нового дизайна</title>
+
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap">
+
+<style>
+:root{
+  --bg:#faf7f4; --surface:#ffffff; --surface-2:#f5efe9;
+  --ink:#1c1917; --ink-2:#57534e; --ink-3:#a8a29e; --line:#ebe4dc;
+  --rose:#d4a5a5; --rose-deep:#b27d7d; --rose-soft:#f7ebeb;
+  --teal:#45b9bd; --blue:#3a73b4; --pink:#e87a96; --coral:#f17a5e; --amber:#f4a64d;
+  --grad-brand:linear-gradient(100deg,#45b9bd,#3a73b4 28%,#e87a96 55%,#f17a5e 78%,#f4a64d);
+  --grad-rose:linear-gradient(135deg,#d4a5a5,#b27d7d);
+  --font-d:'Unbounded',system-ui,sans-serif;
+  --font-b:'Manrope',system-ui,sans-serif;
+  --r-md:20px; --r-lg:28px; --r-xl:36px; --pill:999px;
+  --sh-sm:0 2px 12px rgba(28,25,23,.05);
+  --sh-md:0 14px 40px rgba(28,25,23,.09);
+  --sh-lg:0 30px 80px rgba(28,25,23,.14);
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-b);background:var(--bg);color:var(--ink);line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{display:block;max-width:100%}
+a{color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(18px,4vw,28px)}
+
+/* ---------- утилиты ---------- */
+.grad-text{background:var(--grad-brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border:1px solid var(--line);background:rgba(255,255,255,.7);backdrop-filter:blur(8px);border-radius:var(--pill);font-size:13px;font-weight:600;color:var(--ink-2)}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--grad-brand)}
+.h-lbl{font-family:var(--font-d);font-size:12px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--rose-deep)}
+.h2{font-family:var(--font-d);font-weight:600;font-size:clamp(26px,4.2vw,44px);line-height:1.18;letter-spacing:-.01em}
+.sub{font-size:clamp(15px,1.8vw,18px);color:var(--ink-2);max-width:560px}
+
+/* reveal-анимации */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.rv.on{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
+
+/* ---------- кнопки ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-family:var(--font-b);font-weight:700;font-size:15px;text-decoration:none;border:none;border-radius:var(--pill);cursor:pointer;padding:16px 32px;transition:transform .35s var(--ease),box-shadow .35s var(--ease)}
+.btn-brand{position:relative;color:#fff;background:var(--grad-rose);box-shadow:0 10px 30px rgba(212,165,165,.4);overflow:hidden}
+.btn-brand::before{content:'';position:absolute;inset:0;background:var(--grad-brand);opacity:0;transition:opacity .4s}
+.btn-brand span{position:relative;z-index:1}
+.btn-brand:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(212,165,165,.5)}
+.btn-brand:hover::before{opacity:1}
+.btn-ghost{background:rgba(255,255,255,.75);color:var(--ink);border:1px solid var(--line);backdrop-filter:blur(8px)}
+.btn-ghost:hover{transform:translateY(-3px);border-color:var(--rose);box-shadow:var(--sh-sm)}
+.btn-tg{background:linear-gradient(135deg,#2aabee,#229ed9);color:#fff;box-shadow:0 10px 26px rgba(42,171,238,.3)}
+.btn-wa{background:linear-gradient(135deg,#34c85a,#25a244);color:#fff;box-shadow:0 10px 26px rgba(37,200,90,.3)}
+.btn-tg:hover,.btn-wa:hover{transform:translateY(-3px)}
+.btn-full{width:100%}
+
+/* ---------- навбар ---------- */
+.nav{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:1000;width:min(1180px,calc(100% - 24px));display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 12px 10px 22px;background:rgba(255,255,255,.72);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);border:1px solid rgba(235,228,220,.9);border-radius:var(--pill);box-shadow:var(--sh-sm);transition:box-shadow .3s}
+.nav.scrolled{box-shadow:var(--sh-md)}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+.nav-brand .mark{width:34px;height:34px;border-radius:12px;background:var(--grad-brand)}
+.nav-brand b{font-family:var(--font-d);font-size:14px;font-weight:600;letter-spacing:.02em}
+.nav-menu{display:flex;gap:4px}
+.nav-menu a{padding:9px 16px;border-radius:var(--pill);font-size:14px;font-weight:600;color:var(--ink-2);text-decoration:none;transition:all .25s}
+.nav-menu a:hover{background:var(--rose-soft);color:var(--ink)}
+.nav-cta{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:var(--pill);background:var(--ink);color:#fff;font-size:14px;font-weight:700;text-decoration:none;transition:all .3s var(--ease)}
+.nav-cta:hover{background:var(--rose-deep);transform:translateY(-1px)}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:100svh;display:flex;align-items:center;padding:120px 0 90px;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;pointer-events:none}
+.blob-1{width:520px;height:520px;top:-160px;right:-100px;background:radial-gradient(circle,#f8d8dc,#f4e3d3 70%);animation:drift 16s ease-in-out infinite alternate}
+.blob-2{width:420px;height:420px;bottom:-140px;left:-140px;background:radial-gradient(circle,#d9edee,#e8e4f5 70%);animation:drift 20s ease-in-out infinite alternate-reverse}
+@keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(40px,30px) scale(1.08)}}
+@media(prefers-reduced-motion:reduce){.blob{animation:none}}
+.hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:1fr;gap:56px;align-items:center}
+.hero-copy .chip{margin-bottom:26px}
+.hero-copy h1{font-family:var(--font-d);font-weight:700;font-size:clamp(38px,6.6vw,76px);line-height:1.08;letter-spacing:-.015em}
+.hero-copy .lead{margin-top:22px;font-size:clamp(15px,2vw,18px);color:var(--ink-2);max-width:480px}
+.hero-btns{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
+.hero-stats{display:flex;gap:clamp(20px,4vw,44px);margin-top:44px;flex-wrap:wrap}
+.stat b{font-family:var(--font-d);font-size:clamp(20px,2.6vw,28px);font-weight:600;display:block}
+.stat span{font-size:13px;color:var(--ink-3);font-weight:600}
+
+/* фото с вращающейся градиентной рамкой */
+.hero-visual{position:relative;max-width:430px;margin:0 auto;width:100%}
+.orbit{position:absolute;inset:-3px;border-radius:calc(var(--r-xl) + 3px);background:conic-gradient(from var(--a,0deg),#45b9bd,#3a73b4,#e87a96,#f17a5e,#f4a64d,#45b9bd);animation:spin 9s linear infinite}
+@property --a{syntax:'<angle>';initial-value:0deg;inherits:false}
+@keyframes spin{to{--a:360deg}}
+@media(prefers-reduced-motion:reduce){.orbit{animation:none}}
+.hero-visual .ph{position:relative;border-radius:var(--r-xl);overflow:hidden;aspect-ratio:4/5;box-shadow:var(--sh-lg)}
+.hero-visual .ph img{width:100%;height:100%;object-fit:cover}
+.float-card{position:absolute;display:flex;align-items:center;gap:10px;padding:12px 18px;background:rgba(255,255,255,.85);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:var(--sh-md);font-size:13px;font-weight:700}
+.float-card .ico{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--rose-soft)}
+.fc-1{top:22px;left:-26px;animation:bob 5s ease-in-out infinite}
+.fc-2{bottom:34px;right:-22px;animation:bob 6s .8s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@media(prefers-reduced-motion:reduce){.fc-1,.fc-2{animation:none}}
+
+/* ---------- бегущая строка ---------- */
+.ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface);overflow:hidden;padding:18px 0}
+.ticker-track{display:flex;gap:0;width:max-content;animation:scrollX 30s linear infinite}
+@keyframes scrollX{to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.ticker-track{animation:none}}
+.ticker span{font-family:var(--font-d);font-size:14px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);padding:0 26px;white-space:nowrap}
+.ticker i{font-style:normal;background:var(--grad-brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* ---------- секции ---------- */
+.section{padding:clamp(72px,10vw,130px) 0}
+.sec-head{display:flex;flex-direction:column;gap:16px;margin-bottom:clamp(40px,6vw,64px)}
+
+/* ---------- услуги: bento ---------- */
+.bento{display:grid;grid-template-columns:1fr;gap:18px}
+.card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px;transition:transform .45s var(--ease),box-shadow .45s var(--ease),border-color .45s;overflow:hidden;display:flex;flex-direction:column}
+.card:hover{transform:translateY(-6px);box-shadow:var(--sh-md);border-color:transparent}
+.card::after{content:'';position:absolute;inset:0;border-radius:inherit;padding:1.5px;background:var(--grad-brand);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .45s;pointer-events:none}
+.card:hover::after{opacity:1}
+.card .tile{width:58px;height:58px;border-radius:16px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+.card .tile img{width:32px;height:32px}
+.card h3{font-family:var(--font-d);font-size:17px;font-weight:600;margin-bottom:8px}
+.card .desc{font-size:14px;color:var(--ink-2);flex:1}
+.card .meta{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:22px;padding-top:18px;border-top:1px dashed var(--line)}
+.card .price{font-family:var(--font-d);font-size:19px;font-weight:600}
+.card .price small{font-size:12px;font-weight:500;color:var(--ink-3)}
+.card .dur{font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.card .go{position:absolute;top:22px;right:22px;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--ink-3);transition:all .35s;text-decoration:none}
+.card:hover .go{background:var(--ink);border-color:var(--ink);color:#fff;transform:rotate(-45deg)}
+.card-hero{background:linear-gradient(150deg,#fdf6f3,#f7ebeb);justify-content:flex-end;min-height:280px}
+.card-hero .big{font-family:var(--font-d);font-size:clamp(20px,2.4vw,26px);font-weight:600;line-height:1.25}
+.card-hero .big i{font-style:normal;background:var(--grad-brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.card-hero p{margin-top:10px;font-size:14px;color:var(--ink-2);max-width:300px}
+
+/* ---------- запись ---------- */
+.booking{background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.book-grid{display:grid;grid-template-columns:1fr;gap:22px}
+.glass{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.cal-head h3{font-family:var(--font-d);font-size:15px;font-weight:600}
+.cal-nav{width:40px;height:40px;border:1px solid var(--line);background:var(--surface);border-radius:14px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .25s}
+.cal-nav:hover{border-color:var(--rose);background:var(--rose-soft)}
+.cal-week,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-week span{text-align:center;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding:4px 0}
+.cal-week span.we{color:var(--pink)}
+.cal-grid{margin-top:6px}
+.cal-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border-radius:12px}
+.cal-cell.work{background:#e7f6ec;color:#1d7a3f}
+.cal-cell.off{background:#fdf3e3;color:#c07816}
+.cal-cell.today{outline:2px solid var(--ink);outline-offset:-2px}
+.cal-cell.past{opacity:.35}
+.cal-cell.other{opacity:0}
+.cal-legend{display:flex;gap:18px;justify-content:center;margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.cal-legend .it{display:flex;align-items:center;gap:7px}
+.cal-legend .dot{width:12px;height:12px;border-radius:4px}
+.cal-status{text-align:center;font-size:13.5px;color:var(--ink-2);margin-top:14px;line-height:1.6}
+.side{display:flex;flex-direction:column;gap:14px}
+.info-row{display:flex;gap:14px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-md);padding:16px 18px}
+.info-row .ico{width:44px;height:44px;flex:none;border-radius:14px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:19px}
+.info-row .lbl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.info-row .val{font-size:15px;font-weight:700}
+.side-note{font-size:13.5px;color:var(--ink-3);text-align:center}
+
+/* ---------- карта ---------- */
+.map-card{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);background:var(--surface);box-shadow:var(--sh-sm)}
+.map-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 24px}
+.map-bar .lbl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.map-bar .val{font-size:16px;font-weight:700}
+.map-card iframe{width:100%;height:380px;border:0;display:block;filter:saturate(.85)}
+
+/* ---------- футер ---------- */
+.footer{background:var(--ink);color:#fff;padding:clamp(60px,8vw,90px) 0 120px;position:relative;overflow:hidden}
+.footer .word{font-family:var(--font-d);font-weight:700;font-size:clamp(34px,8vw,96px);line-height:1;letter-spacing:-.02em;background:var(--grad-brand);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:36px}
+.footer-grid{display:flex;flex-direction:column;gap:26px;justify-content:space-between}
+.footer p{color:rgba(255,255,255,.55);font-size:14px}
+.footer .links{display:flex;gap:24px;flex-wrap:wrap}
+.footer .links a{color:rgba(255,255,255,.7);font-size:14px;font-weight:600;text-decoration:none}
+.footer .links a:hover{color:#fff}
+
+/* ---------- мобильная CTA-панель ---------- */
+.dock{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:1100;display:flex;gap:8px;padding:8px;background:rgba(28,25,23,.9);backdrop-filter:blur(18px);border-radius:var(--pill);box-shadow:var(--sh-lg)}
+.dock a{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:var(--pill);font-size:14px;font-weight:700;text-decoration:none;color:#fff}
+.dock .d-book{background:var(--grad-rose)}
+.dock .d-call{background:rgba(255,255,255,.14)}
+
+@media(min-width:640px){
+  .bento{grid-template-columns:repeat(2,1fr)}
+}
+@media(min-width:900px){
+  .hero-grid{grid-template-columns:1.05fr .95fr;gap:70px}
+  .hero-visual{margin:0 0 0 auto}
+  .bento{grid-template-columns:repeat(4,1fr)}
+  .card-hero{grid-column:span 2;grid-row:span 1}
+  .book-grid{grid-template-columns:1.1fr .9fr}
+  .footer{padding-bottom:90px}
+  .footer-grid{flex-direction:row;align-items:flex-end}
+  .dock{display:none}
+}
+@media(max-width:899px){.nav-menu{display:none}}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav">
+  <a class="nav-brand" href="#top"><span class="mark"></span><b>МОРЕ КРАСОК</b></a>
+  <div class="nav-menu">
+    <a href="#services">Услуги</a>
+    <a href="#booking">График</a>
+    <a href="#contacts">Контакты</a>
+  </div>
+  <a href="tel:+79502074302" class="nav-cta">Записаться</a>
+</nav>
+
+<header class="hero" id="top">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="chip"><span class="dot"></span>Студия красоты · Екатеринбург, Уралмаш</span>
+      <h1>Море<br><span class="grad-text">красок</span></h1>
+      <p class="lead">Стрижки, окрашивание, маникюр и педикюр у мастера Анастасии. Уютная студия, где к каждому — внимательно и без спешки.</p>
+      <div class="hero-btns">
+        <a href="#booking" class="btn btn-brand"><span>Записаться</span></a>
+        <a href="#services" class="btn btn-ghost">Услуги и цены</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><b>8</b><span>услуг</span></div>
+        <div class="stat"><b>9–19</b><span>часы работы</span></div>
+        <div class="stat"><b class="grad-text">от 400₽</b><span>цены</span></div>
+      </div>
+    </div>
+    <div class="hero-visual rv">
+      <div class="orbit"></div>
+      <div class="ph"><img src="../images/hero-portrait.jpg" alt="Мастер Анастасия" width="900" height="1275"></div>
+      <div class="float-card fc-1"><span class="ico">📍</span>ул. Донбасская, 4</div>
+      <div class="float-card fc-2"><span class="ico">💅</span>Запись открыта</div>
+    </div>
+  </div>
+</header>
+
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track" id="tickerTrack">
+    <span>Маникюр <i>✦</i></span><span>Педикюр <i>✦</i></span><span>Окрашивание <i>✦</i></span><span>Химическая завивка <i>✦</i></span><span>Женская стрижка <i>✦</i></span><span>Мужская стрижка <i>✦</i></span><span>Детская стрижка <i>✦</i></span><span>Брови <i>✦</i></span>
+  </div>
+</div>
+
+<section class="section" id="services">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="h-lbl">Услуги и цены</span>
+      <h2 class="h2">Красота в каждой детали</h2>
+      <p class="sub">Честные цены и профессиональные материалы. Точную стоимость окрашивания и завивки подскажу после консультации.</p>
+    </div>
+    <div class="bento" id="bento">
+      <div class="card card-hero rv">
+        <div>
+          <p class="big">Подберу образ<br>под <i>ваш характер</i></p>
+          <p>От классики до смелых решений — обсудим, что подойдёт именно вам, и бережно воплотим.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section booking" id="booking">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="h-lbl">Запись</span>
+      <h2 class="h2">График и свободные дни</h2>
+      <p class="sub">Зелёные дни — рабочие. Выберите удобный и напишите любым способом.</p>
+    </div>
+    <div class="book-grid">
+      <div class="glass rv">
+        <div class="cal-head">
+          <button class="cal-nav" id="prevM" aria-label="Назад">←</button>
+          <h3 id="calTitle">—</h3>
+          <button class="cal-nav" id="nextM" aria-label="Вперёд">→</button>
+        </div>
+        <div class="cal-week"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span class="we">Вс</span></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-legend">
+          <span class="it"><span class="dot" style="background:#e7f6ec;border:1.5px solid #1d7a3f"></span>Рабочий день</span>
+          <span class="it"><span class="dot" style="background:#fdf3e3;border:1.5px solid #c07816"></span>Выходной</span>
+        </div>
+        <p class="cal-status" id="calStatus"></p>
+      </div>
+      <div class="side rv">
+        <div class="info-row"><span class="ico">🕐</span><div><p class="lbl">Часы работы</p><p class="val">9:00 — 19:00</p></div></div>
+        <div class="info-row"><span class="ico">📍</span><div><p class="lbl">Адрес</p><p class="val">Екатеринбург, ул. Донбасская, 4</p></div></div>
+        <a href="tel:+79502074302" class="btn btn-brand btn-full"><span>📞 +7 950 207-43-02</span></a>
+        <a href="https://t.me/Nastasiya0619" target="_blank" rel="noopener" class="btn btn-tg btn-full">✈️ Написать в Telegram</a>
+        <a href="https://wa.me/79502074302" target="_blank" rel="noopener" class="btn btn-wa btn-full">💬 Написать в WhatsApp</a>
+        <p class="side-note">Отвечаю в часы работы студии</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="contacts">
+  <div class="wrap">
+    <div class="map-card rv">
+      <div class="map-bar">
+        <div><p class="lbl">Студия на Уралмаше</p><p class="val">г. Екатеринбург, ул. Донбасская, 4</p></div>
+        <a href="https://yandex.ru/maps/?text=Екатеринбург, ул. Донбасская, 4" target="_blank" rel="noopener" class="btn btn-ghost">Проложить маршрут →</a>
+      </div>
+      <iframe title="Карта — ул. Донбасская, 4, Екатеринбург" src="https://yandex.ru/map-widget/v1/?text=Екатеринбург%2C%20улица%20Донбасская%2C%204&z=16" loading="lazy" allowfullscreen></iframe>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <p class="word">Море красок</p>
+    <div class="footer-grid">
+      <p>Мастер красоты Анастасия<br>© 2026 · г. Екатеринбург, ул. Донбасская, 4</p>
+      <div class="links"><a href="#services">Услуги</a><a href="#booking">Запись</a><a href="#contacts">Контакты</a><a href="tel:+79502074302">+7 950 207-43-02</a></div>
+    </div>
+  </div>
+</footer>
+
+<div class="dock">
+  <a href="#booking" class="d-book">💅 Записаться</a>
+  <a href="tel:+79502074302" class="d-call">📞 Позвонить</a>
+</div>
+
+<script>
+// ---- Услуги ----
+var SERVICES=[
+  {ic:'svc-manicure',n:'Маникюр',d:'Покрытие гель-лак, дизайн, уход за ногтями и кутикулой.',t:'2 часа',p:'от 1800₽'},
+  {ic:'svc-pedicure',n:'Педикюр',d:'Аппаратный педикюр с покрытием. Аккуратно и гигиенично.',t:'1–1.5 ч',p:'от 2000₽'},
+  {ic:'svc-coloring',n:'Окрашивание',d:'Тонирование, окрашивание корней, мелирование, балаяж.',t:'1.5–3 ч',p:'по запросу',req:true},
+  {ic:'svc-perm',n:'Химзавивка',d:'Биозавивка и классическая — устойчивая форма надолго.',t:'~2 часа',p:'по запросу',req:true},
+  {ic:'svc-haircut-women',n:'Женская стрижка',d:'С учётом формы лица и пожеланий клиента.',t:'30 мин',p:'от 600₽'},
+  {ic:'svc-haircut-men',n:'Мужская стрижка',d:'Аккуратная классическая или современная.',t:'30 мин',p:'от 400₽'},
+  {ic:'svc-haircut-kids',n:'Детская стрижка',d:'Комфортно для детей, в спокойной обстановке.',t:'30 мин',p:'от 400₽'},
+  {ic:'svc-brows',n:'Брови',d:'Коррекция и окрашивание. Подбор идеальной формы.',t:'30–60 мин',p:'от 800₽'}
+];
+var bento=document.getElementById('bento');
+SERVICES.forEach(function(s){
+  var el=document.createElement('div');
+  el.className='card rv';
+  el.innerHTML='<a class="go" href="#booking" aria-label="Записаться">↗</a>'+
+    '<div class="tile"><img src="../images/'+s.ic+'.svg" alt=""></div>'+
+    '<h3>'+s.n+'</h3><p class="desc">'+s.d+'</p>'+
+    '<div class="meta"><span class="price">'+(s.req?'<small>по запросу</small>':s.p)+'</span><span class="dur">⏱ '+s.t+'</span></div>';
+  bento.appendChild(el);
+});
+
+// ---- бегущая строка: дублируем контент для бесшовности ----
+var tt=document.getElementById('tickerTrack');
+tt.innerHTML+=tt.innerHTML;
+
+// ---- Календарь (график до конца августа 2026) ----
+var WORK_DAYS=new Set(['2026-05-25','2026-05-26','2026-06-12','2026-06-13','2026-06-16','2026-06-17','2026-06-18','2026-06-21','2026-06-22','2026-06-23','2026-06-26','2026-06-27','2026-06-30','2026-07-03','2026-07-04','2026-07-07','2026-07-08','2026-07-09','2026-07-12','2026-07-13','2026-07-16','2026-07-17','2026-07-18','2026-07-21','2026-07-22','2026-07-23','2026-07-26','2026-07-27','2026-07-30','2026-07-31','2026-08-03','2026-08-04','2026-08-07','2026-08-08','2026-08-09','2026-08-12','2026-08-13','2026-08-16','2026-08-17','2026-08-18','2026-08-21','2026-08-22','2026-08-23','2026-08-26','2026-08-27','2026-08-30','2026-08-31']);
+var MONTHS=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+var MGEN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+var WD=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+function iso(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0')}
+var today=new Date();today.setHours(0,0,0,0);
+var view=new Date(today.getFullYear(),today.getMonth(),1);
+function render(){
+  var y=view.getFullYear(),m=view.getMonth();
+  document.getElementById('calTitle').textContent=MONTHS[m]+' '+y;
+  var grid=document.getElementById('calGrid');grid.innerHTML='';
+  var off=(new Date(y,m,1).getDay()+6)%7;
+  for(var i=0;i<off;i++){var e=document.createElement('span');e.className='cal-cell other';grid.appendChild(e);}
+  var dim=new Date(y,m+1,0).getDate();
+  for(var d=1;d<=dim;d++){
+    var cell=document.createElement('span');cell.className='cal-cell';cell.textContent=d;
+    var dt=new Date(y,m,d);var work=WORK_DAYS.has(iso(y,m,d));
+    cell.classList.add(work?'work':'off');
+    if(dt<today)cell.classList.add('past');
+    if(dt.getTime()===today.getTime())cell.classList.add('today');
+    grid.appendChild(cell);
+  }
+  var tw=WORK_DAYS.has(iso(today.getFullYear(),today.getMonth(),today.getDate()));
+  document.getElementById('calStatus').innerHTML='Сегодня, '+today.getDate()+' '+MGEN[today.getMonth()]+' — '+WD[today.getDay()]+' · <strong style="color:'+(tw?'#1d7a3f':'#c07816')+'">'+(tw?'рабочий день':'выходной')+'</strong>';
+}
+document.getElementById('prevM').onclick=function(){view.setMonth(view.getMonth()-1);render();};
+document.getElementById('nextM').onclick=function(){view.setMonth(view.getMonth()+1);render();};
+render();
+
+// ---- появление при скролле ----
+var io=new IntersectionObserver(function(es){
+  es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target);}});
+},{threshold:.12});
+document.querySelectorAll('.rv').forEach(function(el){io.observe(el)});
+
+// ---- тень навбара ----
+window.addEventListener('scroll',function(){
+  document.getElementById('nav').classList.toggle('scrolled',window.scrollY>30);
+},{passive:true});
+</script>
+</body>
+</html>

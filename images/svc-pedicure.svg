@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="420" viewBox="0 0 560 420">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fff8f0"></stop>
+      <stop offset="100%" style="stop-color:#f5dcc8"></stop>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8a87c"></stop>
+      <stop offset="100%" style="stop-color:#d4845a"></stop>
+    </linearGradient>
+  </defs>
+  <rect width="560" height="420" fill="url(#bg)"></rect>
+  <circle cx="280" cy="185" r="130" fill="white" opacity="0.35"></circle>
+  <circle cx="280" cy="185" r="105" fill="url(#accent)" opacity="0.15"></circle>
+  
+  <path d="M240 230 Q230 200 235 170 Q240 148 260 145 Q278 143 285 155 Q295 150 305 153 Q318 156 318 168 Q318 178 308 180 Q300 182 295 175 Q292 185 298 195 Q305 210 300 230 Q295 248 280 252 Q260 255 248 245 Z" fill="#e8a87c" opacity="0.85"></path>
+  
+  <ellipse cx="263" cy="143" rx="10" ry="13" fill="#e8a87c" opacity="0.8"></ellipse>
+  <ellipse cx="280" cy="138" rx="10" ry="14" fill="#e8a87c" opacity="0.8"></ellipse>
+  <ellipse cx="297" cy="141" rx="9" ry="12" fill="#e8a87c" opacity="0.8"></ellipse>
+  <ellipse cx="312" cy="148" rx="8" ry="11" fill="#e8a87c" opacity="0.8"></ellipse>
+  <ellipse cx="244" cy="151" rx="8" ry="10" fill="#e8a87c" opacity="0.8"></ellipse>
+  
+  <ellipse cx="263" cy="138" rx="7" ry="8" fill="#e8737a"></ellipse>
+  <ellipse cx="280" cy="133" rx="7" ry="9" fill="#e8737a"></ellipse>
+  <ellipse cx="297" cy="136" rx="6" ry="8" fill="#e8737a"></ellipse>
+  <ellipse cx="312" cy="143" rx="6" ry="7" fill="#e8737a"></ellipse>
+  <ellipse cx="244" cy="147" rx="5" ry="6" fill="#e8737a"></ellipse>
+  
+  <circle cx="155" cy="120" r="25" fill="#e8a87c" opacity="0.1"></circle>
+  <circle cx="420" cy="230" r="32" fill="#d4845a" opacity="0.08"></circle>
+  <circle cx="170" cy="290" r="14" fill="#e8737a" opacity="0.13"></circle>
+  <circle cx="400" cy="120" r="18" fill="#e8a87c" opacity="0.12"></circle>
+  
+  <rect x="0" y="360" width="560" height="60" fill="white" opacity="0.6"></rect>
+  <rect x="0" y="358" width="560" height="3" fill="#e8a87c" opacity="0.5"></rect>
+  <text x="280" y="398" text-anchor="middle" font-family="Georgia, &#39;Times New Roman&#39;, serif" font-size="20" fill="#d4845a" font-weight="bold" letter-spacing="1.5">Педикюр</text>
+</svg>
