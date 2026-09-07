@@ -85,7 +85,10 @@
   --ease:cubic-bezier(.22,1,.36,1);
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
+/* clip (а не hidden) — не создаёт контекст прокрутки и не ломает scroll-behavior.
+   Нужен, чтобы ширина документа не раздувалась и фиксированный навбар
+   считал свои 100% от реального экрана, а не от разъехавшегося макета. */
+html{scroll-behavior:smooth;overflow-x:clip}
 body{font-family:var(--font-b);background:var(--bg);color:var(--ink);line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 img{display:block;max-width:100%}
 a{color:inherit}
