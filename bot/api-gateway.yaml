@@ -1,0 +1,27 @@
+openapi: 3.0.0
+info:
+  title: more-krasok-api
+  version: 1.0.0
+
+paths:
+  /tg:
+    post:
+      summary: Вебхук Telegram
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: ПОДСТАВЬ_ID_ФУНКЦИИ
+        service_account_id: ПОДСТАВЬ_ID_СЕРВИСНОГО_АККАУНТА
+
+  /book:
+    post:
+      summary: Заявка с сайта
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: ПОДСТАВЬ_ID_ФУНКЦИИ
+        service_account_id: ПОДСТАВЬ_ID_СЕРВИСНОГО_АККАУНТА
+    options:
+      summary: Preflight-запрос браузера
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: ПОДСТАВЬ_ID_ФУНКЦИИ
+        service_account_id: ПОДСТАВЬ_ID_СЕРВИСНОГО_АККАУНТА
