@@ -10,6 +10,7 @@ Thumbs.db
 
 # Ключи Cloudflare — лежат только на машине, в репозиторий не попадают
 .cf-token
+.admin-key
 .dev.vars
 .env
 .env.*
