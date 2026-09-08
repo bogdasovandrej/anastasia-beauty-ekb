@@ -270,6 +270,53 @@ async function handleBooking(body) {
   return { ok: true };
 }
 
+// ---------- диагностика ----------
+
+/* Маршрут /diag проверяет, куда функция вообще может дозвониться.
+   Возвращает только «получилось / не получилось» и время ответа —
+   ни токена, ни ключей наружу не отдаёт. */
+async function probe(name, url, opts) {
+  const t0 = Date.now();
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 5000);
+  try {
+    const r = await fetch(url, Object.assign({ signal: ac.signal }, opts || {}));
+    return { что: name, итог: 'ответил ' + r.status, мс: Date.now() - t0 };
+  } catch (e) {
+    return { что: name, итог: e.name === 'AbortError' ? 'таймаут 5 сек' : 'ошибка: ' + e.message, мс: Date.now() - t0 };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function handleDiag() {
+  const out = { переменные: {}, связь: [], хранилище: null };
+  out.переменные = {
+    BUCKET: !!BUCKET,
+    TG_TOKEN: !!TG_TOKEN,
+    TG_ADMIN_ID: !!ADMIN,
+    AWS_ACCESS_KEY_ID: !!process.env.AWS_ACCESS_KEY_ID,
+    AWS_SECRET_ACCESS_KEY: !!process.env.AWS_SECRET_ACCESS_KEY,
+  };
+
+  out.связь = await Promise.all([
+    probe('api.telegram.org', 'https://api.telegram.org/bot' + TG_TOKEN + '/getMe'),
+    probe('storage.yandexcloud.net', 'https://storage.yandexcloud.net/' + BUCKET + '/schedule.json'),
+    probe('example.com (внешний интернет)', 'https://example.com'),
+    probe('max.ru', 'https://botapi.max.ru/me'),
+  ]);
+
+  // запись в бакет — та самая связка, что ещё ни разу не проверялась
+  try {
+    const s = await loadSchedule();
+    await saveSchedule(s);
+    out.хранилище = 'чтение и запись работают';
+  } catch (e) {
+    out.хранилище = 'ошибка: ' + (e.name || '') + ' ' + e.message;
+  }
+  return out;
+}
+
 // ---------- точка входа ----------
 
 module.exports.handler = async (event) => {
@@ -293,6 +340,13 @@ module.exports.handler = async (event) => {
   const path = event.path || event.url || '';
 
   try {
+    if (path.indexOf('/diag') !== -1) {
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify(await handleDiag(), null, 1),
+      };
+    }
     if (path.indexOf('/book') !== -1) {
       const res = await handleBooking(body);
       return {

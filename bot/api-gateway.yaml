@@ -25,3 +25,11 @@ paths:
         type: cloud_functions
         function_id: ПОДСТАВЬ_ID_ФУНКЦИИ
         service_account_id: ПОДСТАВЬ_ID_СЕРВИСНОГО_АККАУНТА
+
+  /diag:
+    get:
+      summary: Диагностика связи (временный маршрут)
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: ПОДСТАВЬ_ID_ФУНКЦИИ
+        service_account_id: ПОДСТАВЬ_ID_СЕРВИСНОГО_АККАУНТА
