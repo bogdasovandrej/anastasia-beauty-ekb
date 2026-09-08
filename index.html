@@ -269,6 +269,19 @@ a{color:inherit}
 .fld.bad{border-color:#d9534f;box-shadow:0 0 0 3px rgba(217,83,79,.14)}
 select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);background-position:calc(100% - 20px) 22px,calc(100% - 14px) 22px;background-size:6px 6px,6px 6px;background-repeat:no-repeat}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.fld-lbl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:6px}
+.bform-hint{font-size:13.5px;color:var(--ink-2);padding:12px 16px;border:1px dashed var(--line);border-radius:var(--r-md);text-align:center}
+.bform-hint.picked{border-style:solid;border-color:var(--rose);background:var(--rose-soft);font-weight:700;color:var(--ink)}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.slot{padding:11px 6px;border:1px solid var(--line);background:var(--surface);border-radius:14px;font-family:var(--font-b);font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;transition:all .2s var(--ease)}
+.slot:hover{border-color:var(--rose);background:var(--rose-soft)}
+.slot.on{background:var(--grad-rose);border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(212,165,165,.4)}
+.slot.busy{background:var(--surface-2);color:var(--ink-3);cursor:not-allowed;text-decoration:line-through;opacity:.7}
+.slot.busy:hover{border-color:var(--line);background:var(--surface-2)}
+.slots-empty{font-size:13.5px;color:var(--ink-2);text-align:center;padding:8px 0}
+.cal-cell.work{cursor:pointer}
+.cal-cell.work.past{cursor:default}
+.cal-cell.sel{outline:3px solid var(--rose-deep);outline-offset:-3px}
 .bform-note{font-size:11.5px;line-height:1.5;color:var(--ink-3);text-align:center}
 .bform-note.ok{color:var(--ok-fg);font-weight:700;font-size:14px}
 .bform-note.err{color:#c0392b;font-weight:700;font-size:13.5px}
@@ -414,15 +427,27 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
         <p class="side-note">Отвечаю в часы работы студии</p>
 
         <form class="bform" id="bform" novalidate>
-          <p class="bform-head">Или оставьте заявку — перезвоню сама</p>
+          <p class="bform-head">Записаться онлайн</p>
+
+          <label class="fld-lbl">1. Услуга</label>
+          <select class="fld" name="service" id="bformSvc"></select>
+
+          <label class="fld-lbl">2. День</label>
+          <p class="bform-hint" id="bformDay">Нажмите зелёный день в календаре</p>
+
+          <div id="bformSlotsWrap" hidden>
+            <label class="fld-lbl">3. Время</label>
+            <div class="slots" id="bformSlots"></div>
+          </div>
+
+          <label class="fld-lbl">4. Контакты</label>
           <input class="fld" name="name" placeholder="Как вас зовут" maxlength="80" autocomplete="name" required>
           <input class="fld" name="phone" type="tel" placeholder="Телефон" maxlength="30" autocomplete="tel" required>
-          <select class="fld" name="service" id="bformSvc"><option value="">Услуга (необязательно)</option></select>
-          <input class="fld" name="date" placeholder="Удобный день (необязательно)" maxlength="20">
           <!-- ловушка для спам-ботов: человек её не видит и не заполняет -->
           <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-          <button class="btn btn-brand btn-full" type="submit"><span>Отправить заявку</span></button>
-          <p class="bform-note" id="bformNote">Нажимая кнопку, вы соглашаетесь на обработку указанных данных для связи с вами. Заявка уходит мастеру в мессенджер и нигде не хранится.</p>
+
+          <button class="btn btn-brand btn-full" type="submit"><span>Записаться</span></button>
+          <p class="bform-note" id="bformNote">Нажимая кнопку, вы соглашаетесь на обработку имени и телефона — они нужны, чтобы подтвердить запись. Мастеру придёт уведомление, вам перезвонят.</p>
         </form>
       </div>
     </div>
@@ -533,6 +558,7 @@ function iso(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padSt
 var today=new Date();today.setHours(0,0,0,0);
 var TODAY=iso(today.getFullYear(),today.getMonth(),today.getDate());
 var view=new Date(today.getFullYear(),today.getMonth(),1);
+var pickedDay=null,pickedStart=null;
 
 function render(){
   var y=view.getFullYear(),m=view.getMonth();
@@ -549,7 +575,15 @@ function render(){
     cell.classList.add(published?(work?'work':'off'):'unk');
     if(dt<today)cell.classList.add('past');
     if(key===TODAY)cell.classList.add('today');
+    if(key===pickedDay)cell.classList.add('sel');
     cell.title=d+' '+MGEN[m]+' — '+WD[dt.getDay()]+(published?(work?', рабочий день':', выходной'):', график уточняется');
+    // рабочий день не в прошлом можно выбрать для записи
+    if(published&&work&&dt>=today){
+      cell.dataset.day=key;
+      cell.setAttribute('role','button');
+      cell.tabIndex=0;
+      cell.title+=' — нажмите, чтобы выбрать';
+    }
     grid.appendChild(cell);
   }
   var st=document.getElementById('calStatus');
@@ -604,48 +638,122 @@ fetch(SCHEDULE_URL,{cache:'no-cache'}).then(function(r){
   render();
 }).catch(function(){/* остаёмся на зашитом графике */});
 
-/* ---- Заявка с сайта ---- */
-var BOOK_URL=API+'/book';
+/* ---- Запись на время ----
+   Клиент выбирает услугу, потом день в календаре, потом свободное окно.
+   Занятые окна показываем зачёркнутыми, а не прячем: так видно, что день
+   заполняется, и понятно, почему выбор невелик. */
 var bform=document.getElementById('bform'),bnote=document.getElementById('bformNote');
-document.getElementById('bformSvc').innerHTML='<option value="">Услуга (необязательно)</option>'+
-  SERVICES.map(function(s){return '<option>'+s.n+'</option>'}).join('');
+var svcSel=document.getElementById('bformSvc'),dayHint=document.getElementById('bformDay');
+var slotsWrap=document.getElementById('bformSlotsWrap'),slotsBox=document.getElementById('bformSlots');
+
+svcSel.innerHTML=SERVICES.map(function(s){
+  return '<option value="'+s.n+'">'+s.n+' · '+s.t+'</option>';
+}).join('');
+
+function ruDate(key){
+  var p=key.split('-'),d=new Date(+p[0],+p[1]-1,+p[2]);
+  return (+p[2])+' '+MGEN[+p[1]-1]+', '+WD[d.getDay()];
+}
+
+function resetSlots(msg){
+  pickedStart=null;
+  slotsWrap.hidden=true;
+  slotsBox.innerHTML='';
+  if(msg){slotsWrap.hidden=false;slotsBox.innerHTML='<p class="slots-empty">'+msg+'</p>';}
+}
+
+function loadSlots(){
+  if(!pickedDay)return;
+  resetSlots('Смотрю свободное время…');
+  var svc=svcSel.value;
+  Promise.all([
+    fetch(API+'/slots?day='+pickedDay+'&service='+encodeURIComponent(svc)).then(function(r){return r.json()}),
+    fetch(API+'/busy?day='+pickedDay).then(function(r){return r.json()})
+  ]).then(function(res){
+    var free=(res[0]&&res[0].slots)||[],busy=(res[1]&&res[1].busy)||[];
+    if(!free.length&&!busy.length){resetSlots('На этот день свободного времени нет. Позвоните — подберём.');return;}
+    var items=free.map(function(s){return {t:s.start,min:s.min,free:true}})
+      .concat(busy.map(function(b){return {t:b.start,free:false}}));
+    items.sort(function(a,b){return a.t<b.t?-1:1});
+    slotsWrap.hidden=false;
+    slotsBox.innerHTML=items.map(function(it){
+      return it.free
+        ? '<button type="button" class="slot" data-min="'+it.min+'">'+it.t+'</button>'
+        : '<span class="slot busy" title="Уже занято">'+it.t+'</span>';
+    }).join('');
+    if(!free.length){
+      slotsBox.innerHTML+='<p class="slots-empty">Свободного времени под эту услугу не осталось. Выберите другой день.</p>';
+    }
+  }).catch(function(){
+    resetSlots('Не получилось загрузить время. Позвоните, пожалуйста: '+PHONE_TEXT);
+  });
+}
+var PHONE_TEXT='+7 950 207-43-02';
+
+// выбор дня в календаре
+document.getElementById('calGrid').addEventListener('click',function(e){
+  var cell=e.target.closest('[data-day]');
+  if(!cell)return;
+  pickedDay=cell.dataset.day;
+  dayHint.textContent=ruDate(pickedDay);
+  dayHint.classList.add('picked');
+  render();
+  loadSlots();
+  document.getElementById('bform').scrollIntoView({behavior:'smooth',block:'nearest'});
+});
+svcSel.addEventListener('change',loadSlots);
+
+// выбор времени
+slotsBox.addEventListener('click',function(e){
+  var b=e.target.closest('.slot');
+  if(!b||b.classList.contains('busy'))return;
+  pickedStart=+b.dataset.min;
+  [].forEach.call(slotsBox.querySelectorAll('.slot'),function(x){x.classList.remove('on')});
+  b.classList.add('on');
+});
 
 bform.addEventListener('submit',function(e){
   e.preventDefault();
   var f=bform.elements,btn=bform.querySelector('button');
   var name=f.name.value.trim(),phone=f.phone.value.trim();
-  // телефон считаем годным, если в нём есть хотя бы 10 цифр
   var digits=(phone.match(/\d/g)||[]).length;
   f.name.classList.toggle('bad',!name);
   f.phone.classList.toggle('bad',digits<10);
-  if(!name||digits<10){
-    bnote.className='bform-note err';
-    bnote.textContent=!name?'Напишите, как к вам обращаться':'Проверьте номер телефона';
-    return;
-  }
-  btn.disabled=true;btn.querySelector('span').textContent='Отправляю…';
-  fetch(BOOK_URL,{
+
+  var problem=null;
+  if(!pickedDay)problem='Выберите день в календаре';
+  else if(pickedStart===null)problem='Выберите время';
+  else if(!name)problem='Напишите, как к вам обращаться';
+  else if(digits<10)problem='Проверьте номер телефона';
+  if(problem){bnote.className='bform-note err';bnote.textContent=problem;return;}
+
+  btn.disabled=true;btn.querySelector('span').textContent='Записываю…';
+  fetch(API+'/book',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name:name,phone:phone,service:f.service.value,date:f.date.value.trim(),website:f.website.value})
+    body:JSON.stringify({name:name,phone:phone,service:svcSel.value,
+      day:pickedDay,start:pickedStart,website:f.website.value})
   }).then(function(r){
     return r.json().catch(function(){return null});
   }).then(function(res){
     if(res&&res.ok){
       bform.classList.add('sent');
       bnote.className='bform-note ok';
-      bnote.textContent='✅ Заявка отправлена. Анастасия свяжется с вами в часы работы.';
+      bnote.innerHTML='✅ Вы записаны<br>'+ruDate(pickedDay)+
+        (res.start?', '+res.start+'—'+res.end:'')+'<br>'+svcSel.value+
+        '<br><br>Анастасия свяжется с вами, чтобы подтвердить.';
       if(window.ym)ym(108994204,'reachGoal','booking');
       return;
     }
-    // текст ошибки показываем только свой, с сервера; всё остальное — общий совет позвонить
     fail(res&&res.error);
   }).catch(function(){fail()});
 
   function fail(msg){
-    btn.disabled=false;btn.querySelector('span').textContent='Отправить заявку';
+    btn.disabled=false;btn.querySelector('span').textContent='Записаться';
     bnote.className='bform-note err';
-    bnote.textContent=msg||'Не удалось отправить. Позвоните, пожалуйста: +7 950 207-43-02';
+    bnote.textContent=msg||('Не удалось записаться. Позвоните, пожалуйста: '+PHONE_TEXT);
+    // время могли занять, пока клиент заполнял форму — покажем свежую картину
+    loadSlots();
   }
 });
 
