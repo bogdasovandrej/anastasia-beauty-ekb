@@ -1,0 +1,17 @@
+name = "mk-bot"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# График студии. Хранилище создано заранее, id подставлен.
+[[kv_namespaces]]
+binding = "SCHEDULE"
+id = "694c04106abf408aa8a774866dbd9c69"
+
+# Секреты здесь НЕ хранятся — они задаются отдельно, командой
+# npx wrangler secret put ИМЯ
+# и лежат в Cloudflare, а не в репозитории:
+#   TG_TOKEN      токен телеграм-бота
+#   TG_ADMIN_ID   1954130697
+#   MAX_TOKEN     токен бота в МАКСе
+#   MAX_ADMIN_ID  необязательно
+#   ADMIN_KEY     длинная случайная строка, нужна для /setup
