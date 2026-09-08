@@ -7,3 +7,10 @@
 .codex_tmp_*
 Thumbs.db
 .DS_Store
+
+# Ключи Cloudflare — лежат только на машине, в репозиторий не попадают
+.cf-token
+.dev.vars
+.env
+.env.*
+.wrangler/
