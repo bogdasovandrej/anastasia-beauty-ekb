@@ -13,9 +13,10 @@
  *   GET  /diag           — проверка связи и настроек
  *   GET  /setup          — разовая привязка вебхуков, требует ADMIN_KEY
  *
- * Хранилище: KV-неймспейс SCHEDULE.
- *   schedule  — { off: { "2026-09": [11,12,...] }, updated: "..." }
- *   max_chat  — id чата мастера в МАКСе, запоминается при первом сообщению боту
+ * Хранилище: база D1 (привязка DB).
+ *   open_months  — месяцы, за которые график опубликован
+ *   off_days     — выходные, по строке на день
+ *   settings     — служебное, в том числе чат мастера в МАКСе
  *
  * Секреты (задаются в Cloudflare, в коде их нет):
  *   TG_TOKEN, TG_ADMIN_ID, MAX_TOKEN, MAX_ADMIN_ID, ADMIN_KEY
@@ -30,15 +31,37 @@ const MGEN = ['января','февраля','марта','апреля','ма�
 
 // ---------- график ----------
 
+/* Хранилище — D1, а не KV, и это принципиально.
+   KV кэширует чтение примерно на минуту: бот читал устаревшую копию графика,
+   дописывал в неё день и сохранял обратно, затирая предыдущие нажатия. Мастер
+   видел, что календарь не меняется, а часть отметок пропадала. В D1 чтение
+   сразу видит запись, поэтому такой потери быть не может. */
+
 async function loadSchedule(env) {
-  const raw = await env.SCHEDULE.get('schedule');
-  if (!raw) return { off: {}, updated: null };
-  try { return JSON.parse(raw); } catch (e) { return { off: {}, updated: null }; }
+  const open = await env.DB.prepare('SELECT ym FROM open_months').all();
+  const days = await env.DB.prepare('SELECT ym, day FROM off_days ORDER BY day').all();
+  const off = {};
+  for (const r of open.results) off[r.ym] = [];
+  for (const r of days.results) {
+    if (!off[r.ym]) off[r.ym] = [];
+    off[r.ym].push(r.day);
+  }
+  return { off: off };
 }
 
-async function saveSchedule(env, sched) {
-  sched.updated = new Date().toISOString();
-  await env.SCHEDULE.put('schedule', JSON.stringify(sched));
+async function isMonthOpen(env, ym) {
+  const r = await env.DB.prepare('SELECT 1 FROM open_months WHERE ym = ?').bind(ym).first();
+  return !!r;
+}
+
+async function getSetting(env, k) {
+  const r = await env.DB.prepare('SELECT v FROM settings WHERE k = ?').bind(k).first();
+  return r ? r.v : null;
+}
+
+async function setSetting(env, k, v) {
+  await env.DB.prepare('INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v')
+    .bind(k, String(v)).run();
 }
 
 function ym(y, m) { return y + '-' + String(m + 1).padStart(2, '0'); }
@@ -93,27 +116,42 @@ function calendarButtons(sched, y, m) {
   return rows;
 }
 
-/* Общая обработка нажатия. Возвращает короткий ответ для всплывашки
-   и координаты месяца, который надо перерисовать. */
-async function applyTap(env, sched, data) {
+/* Общая обработка нажатия: возвращает текст для всплывашки и месяц,
+   который надо перерисовать.
+
+   Каждое нажатие меняет ровно одну строку в базе, без чтения всего графика
+   и записи его целиком. Поэтому два быстрых нажатия подряд не могут затереть
+   друг друга, даже если придут почти одновременно. */
+async function applyTap(env, data) {
   if (data.startsWith('d:')) {
     const parts = data.split(':');
-    const key = parts[1], d = parseInt(parts[2], 10);
-    if (!sched.off[key]) return { toast: 'Сначала откройте месяц кнопкой внизу', key: key };
-    const set = new Set(sched.off[key]);
-    const nowOff = !set.has(d);
-    if (nowOff) set.add(d); else set.delete(d);
-    sched.off[key] = [...set].sort(function (a, b) { return a - b; });
-    await saveSchedule(env, sched);
-    const mm = parseInt(key.slice(5), 10) - 1;
-    return { toast: d + ' ' + MGEN[mm] + ' — ' + (nowOff ? 'выходной' : 'рабочий день'), key: key };
+    const ym = parts[1], d = parseInt(parts[2], 10);
+    if (!(await isMonthOpen(env, ym))) {
+      return { toast: 'Сначала откройте месяц кнопкой внизу', key: ym };
+    }
+    const has = await env.DB.prepare('SELECT 1 FROM off_days WHERE ym = ? AND day = ?').bind(ym, d).first();
+    if (has) {
+      await env.DB.prepare('DELETE FROM off_days WHERE ym = ? AND day = ?').bind(ym, d).run();
+    } else {
+      await env.DB.prepare('INSERT OR IGNORE INTO off_days (ym, day) VALUES (?, ?)').bind(ym, d).run();
+    }
+    const mm = parseInt(ym.slice(5), 10) - 1;
+    return { toast: d + ' ' + MGEN[mm] + ' — ' + (has ? 'рабочий день' : 'выходной'), key: ym };
   }
+
   if (data.startsWith('o:')) {
-    const key = data.slice(2);
-    if (sched.off[key]) delete sched.off[key]; else sched.off[key] = [];
-    await saveSchedule(env, sched);
-    return { toast: sched.off[key] ? 'Месяц открыт — отметьте выходные' : 'Месяц закрыт', key: key };
+    const ym = data.slice(2);
+    if (await isMonthOpen(env, ym)) {
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM open_months WHERE ym = ?').bind(ym),
+        env.DB.prepare('DELETE FROM off_days WHERE ym = ?').bind(ym),
+      ]);
+      return { toast: 'Месяц закрыт', key: ym };
+    }
+    await env.DB.prepare('INSERT OR IGNORE INTO open_months (ym) VALUES (?)').bind(ym).run();
+    return { toast: 'Месяц открыт — отметьте выходные', key: ym };
   }
+
   if (data.startsWith('m:')) return { toast: '', key: data.slice(2) };
   return { toast: '', key: null };
 }
@@ -186,11 +224,13 @@ async function handleTelegram(env, update) {
   }
 
   if (cb) {
-    const res = await applyTap(env, sched, cb.data || '');
+    const res = await applyTap(env, cb.data || '');
     await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id, text: res.toast || undefined });
     if (res.key) {
+      // перечитываем график после правки, чтобы показать сохранённое, а не ожидаемое
+      const fresh = await loadSchedule(env);
       const y = parseInt(res.key.slice(0, 4), 10), m = parseInt(res.key.slice(5), 10) - 1;
-      await tgShowMonth(env, chatId, cb.message.message_id, sched, y, m);
+      await tgShowMonth(env, chatId, cb.message.message_id, fresh, y, m);
     }
   }
 }
@@ -241,13 +281,15 @@ async function handleMax(env, update) {
     const text = ((m.body && m.body.text) || '').trim().toLowerCase();
     if (!chatId) return;
 
-    // запоминаем чат мастера, чтобы потом слать туда заявки
-    if (env.MAX_ADMIN_ID && String(userId) === String(env.MAX_ADMIN_ID)) {
-      await env.SCHEDULE.put('max_chat', String(chatId));
-    } else if (!(await env.SCHEDULE.get('max_chat'))) {
-      // первый, кто написал боту, — сама мастер: бот ещё никому не показан
-      await env.SCHEDULE.put('max_chat', String(chatId));
-    } else {
+    /* Кто здесь мастер. В МАКСе нет постоянного идентификатора чата, который
+       можно прописать заранее, поэтому первого написавшего запоминаем как мастера.
+       Дальше сверяемся именно с запомненным чатом: в первой версии этой сверки
+       не было, и со второго сообщения мастер становился «посторонним». */
+    const known = await getSetting(env, 'max_chat');
+    const byId = env.MAX_ADMIN_ID && String(userId) === String(env.MAX_ADMIN_ID);
+    if (!known) {
+      await setSetting(env, 'max_chat', chatId);
+    } else if (!byId && String(known) !== String(chatId)) {
       await maxSend(env, chatId, 'Это служебный бот студии «Море красок».\n\nЗаписаться: ' + SITE + '\nПозвонить: ' + PHONE);
       return;
     }
@@ -267,12 +309,12 @@ async function handleMax(env, update) {
   if (type === 'message_callback' && update.callback) {
     const cbk = update.callback;
     const chatId = update.message && update.message.recipient && update.message.recipient.chat_id;
-    const sched = await loadSchedule(env);
-    const res = await applyTap(env, sched, cbk.payload || '');
-    if (res.key && chatId) {
+    const res = await applyTap(env, cbk.payload || '');
+    if (res.key) {
+      const fresh = await loadSchedule(env);
       const y = parseInt(res.key.slice(0, 4), 10), mo = parseInt(res.key.slice(5), 10) - 1;
       await maxApi(env, '/answers', {
-        message: { text: monthText(sched, y, mo), attachments: maxKeyboard(calendarButtons(sched, y, mo)) },
+        message: { text: monthText(fresh, y, mo), attachments: maxKeyboard(calendarButtons(fresh, y, mo)) },
         notification: res.toast || undefined,
       }, '?callback_id=' + encodeURIComponent(cbk.callback_id));
     }
@@ -306,7 +348,7 @@ async function handleBooking(env, body) {
   }
   if (env.MAX_TOKEN) {
     jobs.push((async function () {
-      const chat = await env.SCHEDULE.get('max_chat');
+      const chat = await getSetting(env, 'max_chat');
       if (chat) await maxSend(env, chat, text);
     })().catch(function (e) { console.log('MAX: ' + e.message); }));
   }
@@ -332,7 +374,7 @@ async function handleDiag(env) {
       TG_TOKEN: !!env.TG_TOKEN, TG_ADMIN_ID: !!env.TG_ADMIN_ID,
       MAX_TOKEN: !!env.MAX_TOKEN, ADMIN_KEY: !!env.ADMIN_KEY,
     },
-    kv: { месяцев_в_графике: Object.keys(sched.off).length, обновлён: sched.updated, чат_макса: await env.SCHEDULE.get('max_chat') },
+    база: { месяцев_в_графике: Object.keys(sched.off).length, выходных_всего: Object.values(sched.off).reduce(function(a,b){return a+b.length},0), чат_макса: await getSetting(env, 'max_chat') },
     связь: await Promise.all([
       probe('Telegram getMe', 'https://api.telegram.org/bot' + env.TG_TOKEN + '/getMe'),
       probe('МАКС me', MAX_API + '/me', { headers: { 'Authorization': env.MAX_TOKEN || '' } }),

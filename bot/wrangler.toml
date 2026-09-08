@@ -2,10 +2,12 @@ name = "mk-bot"
 main = "worker.js"
 compatibility_date = "2026-09-01"
 
-# График студии. Хранилище создано заранее, id подставлен.
-[[kv_namespaces]]
-binding = "SCHEDULE"
-id = "694c04106abf408aa8a774866dbd9c69"
+# График студии. База D1: чтение сразу видит запись, поэтому быстрые
+# нажатия в боте не затирают друг друга. KV для этого не годился.
+[[d1_databases]]
+binding = "DB"
+database_name = "more-krasok"
+database_id = "22a8c27d-d31a-4b24-a7f4-f533c3905623"
 
 # Секреты здесь НЕ хранятся — они задаются отдельно, командой
 # npx wrangler secret put ИМЯ
