@@ -275,15 +275,22 @@ async function handleBooking(body) {
 /* Маршрут /diag проверяет, куда функция вообще может дозвониться.
    Возвращает только «получилось / не получилось» и время ответа —
    ни токена, ни ключей наружу не отдаёт. */
-async function probe(name, url, opts) {
+async function probe(name, url, opts, ms) {
   const t0 = Date.now();
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 5000);
+  const timer = setTimeout(() => ac.abort(), ms || 5000);
   try {
     const r = await fetch(url, Object.assign({ signal: ac.signal }, opts || {}));
     return { что: name, итог: 'ответил ' + r.status, мс: Date.now() - t0 };
   } catch (e) {
-    return { что: name, итог: e.name === 'AbortError' ? 'таймаут 5 сек' : 'ошибка: ' + e.message, мс: Date.now() - t0 };
+    var причина = e.cause && (e.cause.code || e.cause.message);
+    return {
+      что: name,
+      итог: e.name === 'AbortError'
+        ? 'ТАЙМАУТ, соединение не установилось'
+        : 'ошибка: ' + (причина || e.message),
+      мс: Date.now() - t0,
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -299,11 +306,23 @@ async function handleDiag() {
     AWS_SECRET_ACCESS_KEY: !!process.env.AWS_SECRET_ACCESS_KEY,
   };
 
+  // DNS отдельно от соединения: важно понять, где именно рвётся
+  const dns = require('dns').promises;
+  try {
+    out.dns_telegram = (await dns.resolve4('api.telegram.org')).join(', ');
+  } catch (e) {
+    out.dns_telegram = 'не резолвится: ' + e.code;
+  }
+
   out.связь = await Promise.all([
-    probe('api.telegram.org', 'https://api.telegram.org/bot' + TG_TOKEN + '/getMe'),
+    probe('api.telegram.org (15 сек)', 'https://api.telegram.org/bot' + TG_TOKEN + '/getMe', null, 15000),
+    // по «голому» IP: если TCP проходит, упрёмся в несовпадение сертификата,
+    // а если блокируют — снова таймаут. Это и различает блокировку от всего прочего.
+    probe('149.154.167.220 (IP Telegram)', 'https://149.154.167.220/', null, 8000),
+    probe('core.telegram.org', 'https://core.telegram.org/', null, 8000),
     probe('storage.yandexcloud.net', 'https://storage.yandexcloud.net/' + BUCKET + '/schedule.json'),
     probe('example.com (внешний интернет)', 'https://example.com'),
-    probe('max.ru', 'https://botapi.max.ru/me'),
+    probe('botapi.max.ru', 'https://botapi.max.ru/me'),
   ]);
 
   // запись в бакет — та самая связка, что ещё ни разу не проверялась
