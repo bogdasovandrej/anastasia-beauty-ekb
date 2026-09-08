@@ -260,6 +260,20 @@ a{color:inherit}
 .info-row .val{font-size:15px;font-weight:700}
 .side-note{font-size:13.5px;color:var(--ink-3);text-align:center}
 
+/* ---------- форма заявки ---------- */
+.bform{display:flex;flex-direction:column;gap:10px;margin-top:6px;padding-top:20px;border-top:1px dashed var(--line)}
+.bform-head{font-size:14px;font-weight:700;text-align:center;margin-bottom:4px}
+.fld{width:100%;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--bg);font-family:var(--font-b);font-size:15px;color:var(--ink);transition:border-color .25s,box-shadow .25s}
+.fld::placeholder{color:var(--ink-3)}
+.fld:focus{outline:none;border-color:var(--rose);box-shadow:0 0 0 3px rgba(212,165,165,.18)}
+.fld.bad{border-color:#d9534f;box-shadow:0 0 0 3px rgba(217,83,79,.14)}
+select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);background-position:calc(100% - 20px) 22px,calc(100% - 14px) 22px;background-size:6px 6px,6px 6px;background-repeat:no-repeat}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.bform-note{font-size:11.5px;line-height:1.5;color:var(--ink-3);text-align:center}
+.bform-note.ok{color:var(--ok-fg);font-weight:700;font-size:14px}
+.bform-note.err{color:#c0392b;font-weight:700;font-size:13.5px}
+.bform.sent .fld,.bform.sent button{display:none}
+
 /* ---------- карта ---------- */
 .map-card{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);background:var(--surface);box-shadow:var(--sh-sm)}
 .map-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 24px}
@@ -398,6 +412,18 @@ a{color:inherit}
         <a href="https://t.me/Nastasiya0619" target="_blank" rel="noopener" class="btn btn-tg btn-full">✈️ Написать в Telegram</a>
         <a href="https://wa.me/79502074302" target="_blank" rel="noopener" class="btn btn-wa btn-full">💬 Написать в WhatsApp</a>
         <p class="side-note">Отвечаю в часы работы студии</p>
+
+        <form class="bform" id="bform" novalidate>
+          <p class="bform-head">Или оставьте заявку — перезвоню сама</p>
+          <input class="fld" name="name" placeholder="Как вас зовут" maxlength="80" autocomplete="name" required>
+          <input class="fld" name="phone" type="tel" placeholder="Телефон" maxlength="30" autocomplete="tel" required>
+          <select class="fld" name="service" id="bformSvc"><option value="">Услуга (необязательно)</option></select>
+          <input class="fld" name="date" placeholder="Удобный день (необязательно)" maxlength="20">
+          <!-- ловушка для спам-ботов: человек её не видит и не заполняет -->
+          <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button class="btn btn-brand btn-full" type="submit"><span>Отправить заявку</span></button>
+          <p class="bform-note" id="bformNote">Нажимая кнопку, вы соглашаетесь на обработку указанных данных для связи с вами. Заявка уходит мастеру в мессенджер и нигде не хранится.</p>
+        </form>
       </div>
     </div>
   </div>
@@ -557,6 +583,70 @@ function render(){
 document.getElementById('prevM').onclick=function(){view.setMonth(view.getMonth()-1);render();};
 document.getElementById('nextM').onclick=function(){view.setMonth(view.getMonth()+1);render();};
 render();
+
+/* График из хранилища.
+   Расписание выше зашито в страницу и работает само по себе — это запасной
+   вариант. Если бакет ответит, свежие данные заменят его и календарь
+   перерисуется. Если облако недоступно, посетитель этого не заметит. */
+var SCHEDULE_URL='https://storage.yandexcloud.net/more-krasok-data/schedule.json';
+fetch(SCHEDULE_URL,{cache:'no-cache'}).then(function(r){
+  return r.ok?r.json():null;
+}).then(function(s){
+  if(!s||!s.off||typeof s.off!=='object')return;
+  var months=Object.keys(s.off);
+  if(!months.length)return;
+  OFF_SET=new Set();
+  PUB_MONTHS=new Set(months);
+  months.forEach(function(ym){
+    (s.off[ym]||[]).forEach(function(d){OFF_SET.add(ym+'-'+String(d).padStart(2,'0'))});
+  });
+  render();
+}).catch(function(){/* остаёмся на зашитом графике */});
+
+/* ---- Заявка с сайта ---- */
+var BOOK_URL='https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net/book';
+var bform=document.getElementById('bform'),bnote=document.getElementById('bformNote');
+document.getElementById('bformSvc').innerHTML='<option value="">Услуга (необязательно)</option>'+
+  SERVICES.map(function(s){return '<option>'+s.n+'</option>'}).join('');
+
+bform.addEventListener('submit',function(e){
+  e.preventDefault();
+  var f=bform.elements,btn=bform.querySelector('button');
+  var name=f.name.value.trim(),phone=f.phone.value.trim();
+  // телефон считаем годным, если в нём есть хотя бы 10 цифр
+  var digits=(phone.match(/\d/g)||[]).length;
+  f.name.classList.toggle('bad',!name);
+  f.phone.classList.toggle('bad',digits<10);
+  if(!name||digits<10){
+    bnote.className='bform-note err';
+    bnote.textContent=!name?'Напишите, как к вам обращаться':'Проверьте номер телефона';
+    return;
+  }
+  btn.disabled=true;btn.querySelector('span').textContent='Отправляю…';
+  fetch(BOOK_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:name,phone:phone,service:f.service.value,date:f.date.value.trim(),website:f.website.value})
+  }).then(function(r){
+    return r.json().catch(function(){return null});
+  }).then(function(res){
+    if(res&&res.ok){
+      bform.classList.add('sent');
+      bnote.className='bform-note ok';
+      bnote.textContent='✅ Заявка отправлена. Анастасия свяжется с вами в часы работы.';
+      if(window.ym)ym(108994204,'reachGoal','booking');
+      return;
+    }
+    // текст ошибки показываем только свой, с сервера; всё остальное — общий совет позвонить
+    fail(res&&res.error);
+  }).catch(function(){fail()});
+
+  function fail(msg){
+    btn.disabled=false;btn.querySelector('span').textContent='Отправить заявку';
+    bnote.className='bform-note err';
+    bnote.textContent=msg||'Не удалось отправить. Позвоните, пожалуйста: +7 950 207-43-02';
+  }
+});
 
 // ---- появление при скролле ----
 var io=new IntersectionObserver(function(es){
