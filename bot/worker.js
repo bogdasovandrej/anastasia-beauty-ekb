@@ -409,10 +409,16 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
+
+    /* Кому разрешено обращаться из браузера: боевой сайт и локальная копия
+       для проверок. Чужому сайту заявку через браузер посетителя не отправить. */
+    const origin = request.headers.get('Origin') || '';
+    const allowed = origin === SITE || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     const cors = {
-      'Access-Control-Allow-Origin': SITE,
+      'Access-Control-Allow-Origin': allowed ? origin : SITE,
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Vary': 'Origin',
     };
     const json = function (data, status, extra) {
       return new Response(JSON.stringify(data, null, 1), {

@@ -586,9 +586,10 @@ render();
 
 /* График из хранилища.
    Расписание выше зашито в страницу и работает само по себе — это запасной
-   вариант. Если бакет ответит, свежие данные заменят его и календарь
-   перерисуется. Если облако недоступно, посетитель этого не заметит. */
-var SCHEDULE_URL='https://storage.yandexcloud.net/more-krasok-data/schedule.json';
+   вариант. Если сервер ответит, свежие данные заменят его и календарь
+   перерисуется. Если сервер недоступен, посетитель этого не заметит. */
+var API='https://mk-bot.more-krasok-bot.workers.dev';
+var SCHEDULE_URL=API+'/schedule.json';
 fetch(SCHEDULE_URL,{cache:'no-cache'}).then(function(r){
   return r.ok?r.json():null;
 }).then(function(s){
@@ -604,7 +605,7 @@ fetch(SCHEDULE_URL,{cache:'no-cache'}).then(function(r){
 }).catch(function(){/* остаёмся на зашитом графике */});
 
 /* ---- Заявка с сайта ---- */
-var BOOK_URL='https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net/book';
+var BOOK_URL=API+'/book';
 var bform=document.getElementById('bform'),bnote=document.getElementById('bformNote');
 document.getElementById('bformSvc').innerHTML='<option value="">Услуга (необязательно)</option>'+
   SERVICES.map(function(s){return '<option>'+s.n+'</option>'}).join('');
