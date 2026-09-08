@@ -12,6 +12,7 @@
  *   POST /book           — запись на время; без времени — просьба перезвонить
  *   POST /tg             — вебхук Telegram
  *   POST /max            — вебхук МАКС
+ *   GET  /calendar.ics   — подписка на календарь телефона, по отдельному ключу
  *   GET  /diag           — проверка связи и настроек
  *   GET  /setup          — разовая привязка вебхуков, требует ADMIN_KEY
  *
@@ -31,19 +32,47 @@
  */
 
 const SITE = 'https://more-krasok.ru';
+const SELF_URL = 'https://mk-bot.more-krasok-bot.workers.dev';
 const MAX_API = 'https://botapi.max.ru';
 const PHONE = '+7 950 207-43-02';
+const NL = String.fromCharCode(10); // перенос строки, устойчивый к правкам файла
 
-const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-const MGEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const MONTHS = [
+  'Январь',
+  'Февраль',
+  'Март',
+  'Апрель',
+  'Май',
+  'Июнь',
+  'Июль',
+  'Август',
+  'Сентябрь',
+  'Октябрь',
+  'Ноябрь',
+  'Декабрь',
+];
+const MGEN = [
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
+];
 
 // ---------- график ----------
 
 /* Хранилище — D1, а не KV, и это принципиально.
-   KV кэширует чтение примерно на минуту: бот читал устаревшую копию графика,
-   дописывал в неё день и сохранял обратно, затирая предыдущие нажатия. Мастер
-   видел, что календарь не меняется, а часть отметок пропадала. В D1 чтение
-   сразу видит запись, поэтому такой потери быть не может. */
+KV кэширует чтение примерно на минуту: бот читал устаревшую копию графика,
+дописывал в неё день и сохранял обратно, затирая предыдущие нажатия. Мастер
+видел, что календарь не меняется, а часть отметок пропадала. В D1 чтение
+сразу видит запись, поэтому такой потери быть не может. */
 
 async function loadSchedule(env) {
   const open = await env.DB.prepare('SELECT ym FROM open_months').all();
@@ -68,14 +97,19 @@ async function getSetting(env, k) {
 }
 
 async function setSetting(env, k, v) {
-  await env.DB.prepare('INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v')
-    .bind(k, String(v)).run();
+  await env.DB.prepare(
+    'INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v',
+  )
+    .bind(k, String(v))
+    .run();
 }
 
-function ym(y, m) { return y + '-' + String(m + 1).padStart(2, '0'); }
+function ym(y, m) {
+  return y + '-' + String(m + 1).padStart(2, '0');
+}
 
 /* Раскладка месяца: недели по 7 ячеек, понедельник первый.
-   Возвращает сетку чисел, где 0 — пустая клетка до начала или после конца месяца. */
+Возвращает сетку чисел, где 0 — пустая клетка до начала или после конца месяца. */
 function monthGrid(y, m) {
   const first = (new Date(Date.UTC(y, m, 1)).getUTCDay() + 6) % 7;
   const days = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
@@ -93,17 +127,25 @@ function monthText(sched, y, m) {
   const off = sched.off[key];
   const head = MONTHS[m] + ' ' + y;
   if (!off) {
-    return head + '\n\nМесяц закрыт — на сайте написано, что график ещё не готов.\n' +
-      'Нажмите «месяц закрыт», чтобы открыть его, потом отметьте выходные.';
+    return (
+      head +
+      '\n\nМесяц закрыт — на сайте написано, что график ещё не готов.\n' +
+      'Нажмите «месяц закрыт», чтобы открыть его, потом отметьте выходные.'
+    );
   }
   const days = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-  return head + '\n\nВыходные: ' + (off.length ? off.join(', ') : 'пока нет') +
-    '\nРабочих дней: ' + (days - off.length) +
-    '\n\nНажмите на число, чтобы переключить его.\nВыходные помечены точками: ·5·';
+  return (
+    head +
+    '\n\nВыходные: ' +
+    (off.length ? off.join(', ') : 'пока нет') +
+    '\nРабочих дней: ' +
+    (days - off.length) +
+    '\n\nНажмите на число, чтобы переключить его.\nВыходные помечены точками: ·5·'
+  );
 }
 
 /* Одна раскладка кнопок для обоих мессенджеров: у них разный формат,
-   но одинаковая логика, поэтому строим нейтральный массив и переводим ниже. */
+но одинаковая логика, поэтому строим нейтральный массив и переводим ниже. */
 function calendarButtons(sched, y, m) {
   const key = ym(y, m);
   const off = new Set(sched.off[key] || []);
@@ -125,15 +167,16 @@ function calendarButtons(sched, y, m) {
 }
 
 /* Общая обработка нажатия: возвращает текст для всплывашки и месяц,
-   который надо перерисовать.
+который надо перерисовать.
 
-   Каждое нажатие меняет ровно одну строку в базе, без чтения всего графика
-   и записи его целиком. Поэтому два быстрых нажатия подряд не могут затереть
-   друг друга, даже если придут почти одновременно. */
+Каждое нажатие меняет ровно одну строку в базе, без чтения всего графика
+и записи его целиком. Поэтому два быстрых нажатия подряд не могут затереть
+друг друга, даже если придут почти одновременно. */
 async function applyTap(env, data) {
   if (data.startsWith('d:')) {
     const parts = data.split(':');
-    const ym = parts[1], d = parseInt(parts[2], 10);
+    const ym = parts[1],
+      d = parseInt(parts[2], 10);
     if (!(await isMonthOpen(env, ym))) {
       return { toast: 'Сначала откройте месяц кнопкой внизу', key: ym };
     }
@@ -167,29 +210,29 @@ async function applyTap(env, data) {
 // ---------- запись по времени ----------
 
 /* Длительности услуг в минутах. Это то, на сколько занимается кресло,
-   а не «сколько идёт процедура» — на них строится сетка свободных окон.
-   Значения взяты из описаний услуг на сайте, мастеру их стоит подтвердить. */
+а не «сколько идёт процедура» — на них строится сетка свободных окон.
+Значения взяты из описаний услуг на сайте, мастеру их стоит подтвердить. */
 const DURATION = {
-  'Маникюр': 120,
-  'Педикюр': 90,
-  'Окрашивание': 180,
-  'Химзавивка': 120,
+  Маникюр: 120,
+  Педикюр: 90,
+  Окрашивание: 180,
+  Химзавивка: 120,
   'Женская стрижка': 30,
   'Мужская стрижка': 30,
   'Детская стрижка': 30,
-  'Брови': 60,
+  Брови: 60,
 };
-const WORK_FROM = 9 * 60;    // 9:00
-const WORK_TO = 19 * 60;     // 19:00
-const STEP = 30;             // шаг сетки — полчаса
-const EKB = 5 * 60;          // Екатеринбург, UTC+5
+const WORK_FROM = 9 * 60; // 9:00
+const WORK_TO = 19 * 60; // 19:00
+const STEP = 30; // шаг сетки — полчаса
+const EKB = 5 * 60; // Екатеринбург, UTC+5
 
 function hhmm(min) {
   return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0');
 }
 
 /* Сейчас по Екатеринбургу. Сервер живёт по UTC, поэтому все сравнения
-   «уже прошло / ещё нет» делаем через смещение, а не через часовой пояс машины. */
+«уже прошло / ещё нет» делаем через смещение, а не через часовой пояс машины. */
 function nowEkb() {
   const t = new Date(Date.now() + EKB * 60000);
   return {
@@ -208,14 +251,16 @@ async function isWorkingDay(env, day) {
 
 async function busyOn(env, day) {
   const r = await env.DB.prepare(
-    "SELECT start_min, end_min FROM bookings WHERE day = ? AND status != 'cancelled' ORDER BY start_min"
-  ).bind(day).all();
+    "SELECT start_min, end_min FROM bookings WHERE day = ? AND status != 'cancelled' ORDER BY start_min",
+  )
+    .bind(day)
+    .all();
   return r.results;
 }
 
 /* Свободные окна под конкретную услугу: перебираем сетку с шагом в полчаса
-   и оставляем те начала, где услуга целиком помещается до конца рабочего дня
-   и не задевает уже занятое время. */
+и оставляем те начала, где услуга целиком помещается до конца рабочего дня
+и не задевает уже занятое время. */
 async function freeSlots(env, day, service) {
   const dur = DURATION[service];
   if (!dur) return { error: 'Неизвестная услуга' };
@@ -229,18 +274,23 @@ async function freeSlots(env, day, service) {
     if (day < now.day) break;
     // на сегодня не предлагаем то, что уже началось, и оставляем час на сборы
     if (day === now.day && s < now.min + 60) continue;
-    const clash = busy.some(function (b) { return s < b.end_min && b.start_min < s + dur; });
+    const clash = busy.some(function (b) {
+      return s < b.end_min && b.start_min < s + dur;
+    });
     if (!clash) slots.push({ start: hhmm(s), end: hhmm(s + dur), min: s });
   }
   return { slots: slots, duration: dur };
 }
 
 function cleanField(v, max) {
-  return String(v == null ? '' : v).replace(/[<>]/g, '').trim().slice(0, max);
+  return String(v == null ? '' : v)
+    .replace(/[<>]/g, '')
+    .trim()
+    .slice(0, max);
 }
 
 /* Бронирование. Проверку на занятость делаем ещё раз прямо перед записью:
-   между тем, как клиент увидел окно и нажал кнопку, его мог занять другой. */
+между тем, как клиент увидел окно и нажал кнопку, его мог занять другой. */
 async function createBooking(env, body) {
   const name = cleanField(body.name, 80);
   const phone = cleanField(body.phone, 30);
@@ -248,7 +298,7 @@ async function createBooking(env, body) {
   const day = cleanField(body.day, 10);
   const start = parseInt(body.start, 10);
 
-  if (cleanField(body.website, 50)) return { ok: true };  // ловушка для ботов
+  if (cleanField(body.website, 50)) return { ok: true }; // ловушка для ботов
   if (!name || !phone) return { ok: false, error: 'Укажите имя и телефон' };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return { ok: false, error: 'Выберите день' };
   const dur = DURATION[service];
@@ -262,57 +312,100 @@ async function createBooking(env, body) {
   }
 
   const busy = await busyOn(env, day);
-  if (busy.some(function (b) { return start < b.end_min && b.start_min < start + dur; })) {
+  if (
+    busy.some(function (b) {
+      return start < b.end_min && b.start_min < start + dur;
+    })
+  ) {
     return { ok: false, error: 'Это время только что заняли. Выберите другое, пожалуйста' };
   }
 
   const res = await env.DB.prepare(
-    'INSERT INTO bookings (day, start_min, end_min, service, name, phone, status, created_at) VALUES (?,?,?,?,?,?,?,?)'
-  ).bind(day, start, start + dur, service, name, phone, 'new', new Date().toISOString()).run();
+    'INSERT INTO bookings (day, start_min, end_min, service, name, phone, status, created_at) VALUES (?,?,?,?,?,?,?,?)',
+  )
+    .bind(day, start, start + dur, service, name, phone, 'new', new Date().toISOString())
+    .run();
 
   const id = res.meta.last_row_id;
-  await notifyMaster(env, {
-    id: id, day: day, start: start, end: start + dur, service: service, name: name, phone: phone,
-  });
+  // если запись завела сама мастер — уведомлять её о ней же незачем
+  if (!body.silent) {
+    await notifyMaster(env, {
+      id: id,
+      day: day,
+      start: start,
+      end: start + dur,
+      service: service,
+      name: name,
+      phone: phone,
+    });
+  }
   return { ok: true, id: id, start: hhmm(start), end: hhmm(start + dur) };
 }
 
 function bookingText(b) {
   const p = b.day.split('-');
   const d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
-  return '🔔 Новая запись\n\n' +
-    '📅 ' + (+p[2]) + ' ' + MGEN[+p[1] - 1] + ', ' + WDAYS[d.getUTCDay()] + '\n' +
-    '🕐 ' + hhmm(b.start) + ' — ' + hhmm(b.end) + '\n' +
-    '💅 ' + b.service + '\n\n' +
-    '👤 ' + b.name + '\n' +
-    '📞 ' + b.phone;
+  return (
+    '🔔 Новая запись\n\n' +
+    '📅 ' +
+    +p[2] +
+    ' ' +
+    MGEN[+p[1] - 1] +
+    ', ' +
+    WDAYS[d.getUTCDay()] +
+    '\n' +
+    '🕐 ' +
+    hhmm(b.start) +
+    ' — ' +
+    hhmm(b.end) +
+    '\n' +
+    '💅 ' +
+    b.service +
+    '\n\n' +
+    '👤 ' +
+    b.name +
+    '\n' +
+    '📞 ' +
+    b.phone
+  );
 }
 
-const WDAYS = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+const WDAYS = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
 
 async function notifyMaster(env, b) {
   const text = bookingText(b);
   const jobs = [];
   if (env.TG_TOKEN && env.TG_ADMIN_ID) {
-    jobs.push(tg(env, 'sendMessage', {
-      chat_id: env.TG_ADMIN_ID,
-      text: text + '\n\n💬 Ответьте на это сообщение, чтобы добавить фамилию или пометку',
-      reply_markup: { inline_keyboard: [[{ text: '✖ Отменить запись', callback_data: 'c:' + b.id }]] },
-    }).then(function (r) {
-      // запоминаем номер сообщения: по ответу на него найдём эту запись
-      if (r && r.ok && r.result) {
-        return env.DB.prepare('UPDATE bookings SET tg_msg_id = ? WHERE id = ?')
-          .bind(r.result.message_id, b.id).run();
-      }
-    }).catch(function (e) { console.log('TG: ' + e.message); }));
+    jobs.push(
+      tg(env, 'sendMessage', {
+        chat_id: env.TG_ADMIN_ID,
+        text: text + '\n\n💬 Ответьте на это сообщение, чтобы добавить фамилию или пометку',
+        reply_markup: { inline_keyboard: [[{ text: '✖ Отменить запись', callback_data: 'c:' + b.id }]] },
+      })
+        .then(function (r) {
+          // запоминаем номер сообщения: по ответу на него найдём эту запись
+          if (r && r.ok && r.result) {
+            return env.DB.prepare('UPDATE bookings SET tg_msg_id = ? WHERE id = ?')
+              .bind(r.result.message_id, b.id)
+              .run();
+          }
+        })
+        .catch(function (e) {
+          console.log('TG: ' + e.message);
+        }),
+    );
   }
   if (env.MAX_TOKEN) {
-    jobs.push((async function () {
-      const chat = await getSetting(env, 'max_chat');
-      if (chat) {
-        await maxSend(env, chat, text, [[{ text: '✖ Отменить запись', data: 'c:' + b.id }]]);
-      }
-    })().catch(function (e) { console.log('MAX: ' + e.message); }));
+    jobs.push(
+      (async function () {
+        const chat = await getSetting(env, 'max_chat');
+        if (chat) {
+          await maxSend(env, chat, text, [[{ text: '✖ Отменить запись', data: 'c:' + b.id }]]);
+        }
+      })().catch(function (e) {
+        console.log('MAX: ' + e.message);
+      }),
+    );
   }
   await Promise.all(jobs);
 }
@@ -321,9 +414,11 @@ async function notifyMaster(env, b) {
 async function upcomingText(env) {
   const now = nowEkb();
   const r = await env.DB.prepare(
-    "SELECT id, day, start_min, end_min, service, name, phone, note FROM bookings " +
-    "WHERE day >= ? AND status != 'cancelled' ORDER BY day, start_min LIMIT 20"
-  ).bind(now.day).all();
+    'SELECT id, day, start_min, end_min, service, name, phone, note FROM bookings ' +
+      "WHERE day >= ? AND status != 'cancelled' ORDER BY day, start_min LIMIT 20",
+  )
+    .bind(now.day)
+    .all();
   if (!r.results.length) return 'Записей пока нет.';
   let out = 'Ближайшие записи:\n';
   let lastDay = '';
@@ -331,21 +426,31 @@ async function upcomingText(env) {
     if (b.day !== lastDay) {
       const p = b.day.split('-');
       const d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
-      out += '\n📅 ' + (+p[2]) + ' ' + MGEN[+p[1] - 1] + ', ' + WDAYS[d.getUTCDay()] + '\n';
+      out += '\n📅 ' + +p[2] + ' ' + MGEN[+p[1] - 1] + ', ' + WDAYS[d.getUTCDay()] + '\n';
       lastDay = b.day;
     }
-    out += '  ' + hhmm(b.start_min) + '–' + hhmm(b.end_min) + '  ' + b.service +
-      '\n     ' + b.name + ', ' + b.phone + '\n';
+    out +=
+      '  ' +
+      hhmm(b.start_min) +
+      '–' +
+      hhmm(b.end_min) +
+      '  ' +
+      b.service +
+      '\n     ' +
+      b.name +
+      ', ' +
+      b.phone +
+      '\n';
     if (b.note) out += '     💬 ' + b.note.replace(/\n/g, '\n        ') + '\n';
   }
   return out;
 }
 
 /* ---- Заметки ----
-   Сайт спрашивает у клиента только имя, а мастеру нужна фамилия и мелочи
-   вроде «гель красный». Поэтому любой обычный текст, отправленный боту,
-   сохраняется: ответом на уведомление о записи — прямо к этой записи,
-   просто так — в общий блокнот. Никаких команд запоминать не нужно. */
+Сайт спрашивает у клиента только имя, а мастеру нужна фамилия и мелочи
+вроде «гель красный». Поэтому любой обычный текст, отправленный боту,
+сохраняется: ответом на уведомление о записи — прямо к этой записи,
+просто так — в общий блокнот. Никаких команд запоминать не нужно. */
 
 async function addNoteToBooking(env, id, text) {
   const b = await env.DB.prepare('SELECT note FROM bookings WHERE id = ?').bind(id).first();
@@ -357,26 +462,34 @@ async function addNoteToBooking(env, id, text) {
 
 async function addFreeNote(env, text) {
   await env.DB.prepare('INSERT INTO notes (text, created_at) VALUES (?, ?)')
-    .bind(text, new Date().toISOString()).run();
+    .bind(text, new Date().toISOString())
+    .run();
 }
 
 async function notesText(env) {
   const r = await env.DB.prepare('SELECT text, created_at FROM notes ORDER BY id DESC LIMIT 30').all();
   if (!r.results.length) {
-    return 'Блокнот пуст.\n\nПросто напишите боту любой текст — он сохранится сюда.\n' +
-      'А если ответить на сообщение о записи, заметка прицепится к ней.';
+    return (
+      'Блокнот пуст.\n\nПросто напишите боту любой текст — он сохранится сюда.\n' +
+      'А если ответить на сообщение о записи, заметка прицепится к ней.'
+    );
   }
   let out = '📓 Блокнот:\n';
   for (const n of r.results) {
     const d = new Date(new Date(n.created_at).getTime() + EKB * 60000);
-    out += '\n' + String(d.getUTCDate()).padStart(2, '0') + '.' +
-      String(d.getUTCMonth() + 1).padStart(2, '0') + ' — ' + n.text;
+    out +=
+      '\n' +
+      String(d.getUTCDate()).padStart(2, '0') +
+      '.' +
+      String(d.getUTCMonth() + 1).padStart(2, '0') +
+      ' — ' +
+      n.text;
   }
   return out;
 }
 
 /* По какой записи пришёл ответ. Telegram сообщает, на какое сообщение
-   отвечают, а мы при отправке уведомления запомнили его номер. */
+отвечают, а мы при отправке уведомления запомнили его номер. */
 async function bookingByTgMessage(env, msgId) {
   if (!msgId) return null;
   return env.DB.prepare('SELECT id FROM bookings WHERE tg_msg_id = ?').bind(msgId).first();
@@ -387,6 +500,177 @@ async function cancelBooking(env, id) {
   if (!b) return 'Запись не найдена';
   await env.DB.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").bind(id).run();
   return 'Запись отменена, время снова свободно.\nПозвоните клиенту: ' + b.phone;
+}
+
+// ---------- меню, состояние, запись мастером ----------
+
+const SERVICE_NAMES = Object.keys(DURATION);
+
+/* Постоянные кнопки под полем ввода: мастеру не нужно помнить команды
+и что-то печатать — всё делается нажатиями. */
+const MENU_TG = {
+  keyboard: [
+    [{ text: '✍️ Записать клиента' }, { text: '📋 Мои записи' }],
+    [{ text: '📅 График' }, { text: '📓 Блокнот' }],
+    [{ text: '📱 Календарь на телефон' }],
+  ],
+  resize_keyboard: true,
+  is_persistent: true,
+};
+const MENU_MAX = [
+  [
+    { text: '✍️ Записать клиента', data: 'menu:zapis' },
+    { text: '📋 Мои записи', data: 'menu:zapisi' },
+  ],
+  [
+    { text: '📅 График', data: 'menu:grafik' },
+    { text: '📓 Блокнот', data: 'menu:zametki' },
+  ],
+  [{ text: '📱 Календарь на телефон', data: 'menu:cal' }],
+];
+
+/* Состояние пошаговой записи. Мастер тычет день → услугу → время,
+между нажатиями надо помнить, что уже выбрано. */
+async function getState(env) {
+  const raw = await getSetting(env, 'state');
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+async function setState(env, st) {
+  await setSetting(env, 'state', JSON.stringify(st));
+}
+async function clearState(env) {
+  await setSetting(env, 'state', '{}');
+}
+
+/* Календарь для выбора дня записи: выходные не нажимаются,
+прошедшие дни тоже. Отличается от календаря графика только смыслом нажатия. */
+function bookDayButtons(sched, y, m) {
+  const key = ym(y, m);
+  const off = new Set(sched.off[key] || []);
+  const open = Object.prototype.hasOwnProperty.call(sched.off, key);
+  const now = nowEkb();
+  const rows = monthGrid(y, m).map(function (week) {
+    return week.map(function (d) {
+      if (!d) return { text: ' ', data: 'x' };
+      const day = key + '-' + String(d).padStart(2, '0');
+      if (!open || off.has(d) || day < now.day) return { text: '·', data: 'x' };
+      return { text: String(d), data: 'bd:' + day };
+    });
+  });
+  const prev = m === 0 ? ym(y - 1, 11) : ym(y, m - 1);
+  const next = m === 11 ? ym(y + 1, 0) : ym(y, m + 1);
+  rows.push([
+    { text: '←', data: 'bm:' + prev },
+    { text: MONTHS[m] + ' ' + y, data: 'x' },
+    { text: '→', data: 'bm:' + next },
+  ]);
+  return rows;
+}
+
+function serviceButtons() {
+  const rows = [];
+  for (let i = 0; i < SERVICE_NAMES.length; i += 2) {
+    const row = [{ text: SERVICE_NAMES[i], data: 'bs:' + i }];
+    if (SERVICE_NAMES[i + 1]) row.push({ text: SERVICE_NAMES[i + 1], data: 'bs:' + (i + 1) });
+    rows.push(row);
+  }
+  return rows;
+}
+
+async function slotButtons(env, day, service) {
+  const res = await freeSlots(env, day, service);
+  const rows = [];
+  const list = res.slots || [];
+  for (let i = 0; i < list.length; i += 3) {
+    rows.push(
+      list.slice(i, i + 3).map(function (s) {
+        return { text: s.start, data: 'bt:' + s.min };
+      }),
+    );
+  }
+  return { rows: rows, count: list.length };
+}
+
+function ruDay(day) {
+  const p = day.split('-');
+  const d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+  return +p[2] + ' ' + MGEN[+p[1] - 1] + ', ' + WDAYS[d.getUTCDay()];
+}
+
+// ---------- календарь на телефон (подписка ICS) ----------
+
+/* Ссылка на календарь попадает в телефон и живёт там долго, поэтому у неё
+отдельный ключ: если он утечёт, это откроет только просмотр записей,
+а не управление ботом. */
+async function calendarKey(env) {
+  let k = await getSetting(env, 'cal_key');
+  if (!k) {
+    k = crypto.randomUUID().replace(/-/g, '');
+    await setSetting(env, 'cal_key', k);
+  }
+  return k;
+}
+
+function icsTime(day, min) {
+  // время храним по Екатеринбургу, в календарь отдаём в UTC — так не нужен
+  // блок описания часового пояса, и телефон покажет верное время в любом поясе
+  const p = day.split('-');
+  const t = Date.UTC(+p[0], +p[1] - 1, +p[2], 0, min - EKB);
+  return new Date(t)
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
+}
+
+function icsEscape(s) {
+  return String(s || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n');
+}
+
+async function calendarIcs(env) {
+  const now = nowEkb();
+  const from = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const r = await env.DB.prepare(
+    'SELECT id, day, start_min, end_min, service, name, phone, note FROM bookings ' +
+      "WHERE day >= ? AND status != 'cancelled' ORDER BY day, start_min",
+  )
+    .bind(from)
+    .all();
+
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//more-krasok//RU',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Море красок — записи',
+    'X-WR-TIMEZONE:Asia/Yekaterinburg',
+    'REFRESH-INTERVAL;VALUE=DURATION:PT15M',
+    'X-PUBLISHED-TTL:PT15M',
+  ];
+  for (const b of r.results) {
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:booking-' + b.id + '@more-krasok.ru');
+    lines.push('DTSTAMP:' + stamp);
+    lines.push('DTSTART:' + icsTime(b.day, b.start_min));
+    lines.push('DTEND:' + icsTime(b.day, b.end_min));
+    lines.push('SUMMARY:' + icsEscape(b.service + ' — ' + b.name));
+    lines.push('DESCRIPTION:' + icsEscape(b.phone + (b.note ? '\n' + b.note : '')));
+    lines.push('END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
 }
 
 // ---------- Telegram ----------
@@ -405,7 +689,9 @@ async function tg(env, method, payload) {
 function tgKeyboard(rows) {
   return {
     inline_keyboard: rows.map(function (row) {
-      return row.map(function (b) { return { text: b.text, callback_data: b.data }; });
+      return row.map(function (b) {
+        return { text: b.text, callback_data: b.data };
+      });
     }),
   };
 }
@@ -444,8 +730,102 @@ async function handleTelegram(env, update) {
   const now = new Date();
 
   if (msg && msg.text) {
-    const cmd = msg.text.trim().toLowerCase().split('@')[0];
-    if (cmd === '/start' || cmd === '/grafik' || cmd === '/график') {
+    const raw = msg.text.trim();
+    const cmd = raw.toLowerCase().split('@')[0];
+
+    // ---- нажатия кнопок меню ----
+    if (raw === '✍️ Записать клиента') {
+      await setState(env, { step: 'day' });
+      const now2 = new Date();
+      await tg(env, 'sendMessage', {
+        chat_id: chatId,
+        text: 'Выберите день записи:',
+        reply_markup: tgKeyboard(bookDayButtons(sched, now2.getUTCFullYear(), now2.getUTCMonth())),
+      });
+      return;
+    }
+    if (raw === '📋 Мои записи') {
+      await tg(env, 'sendMessage', { chat_id: chatId, text: await upcomingText(env), reply_markup: MENU_TG });
+      return;
+    }
+    if (raw === '📅 График') {
+      await tgShowMonth(env, chatId, null, sched, now.getUTCFullYear(), now.getUTCMonth());
+      return;
+    }
+    if (raw === '📓 Блокнот') {
+      await tg(env, 'sendMessage', { chat_id: chatId, text: await notesText(env), reply_markup: MENU_TG });
+      return;
+    }
+    if (raw === '📱 Календарь на телефон') {
+      const k = await calendarKey(env);
+      await tg(env, 'sendMessage', {
+        chat_id: chatId,
+        text:
+          'Записи в календаре телефона\n\n' +
+          'Ссылка для подписки:\n' +
+          SELF_URL +
+          '/calendar.ics?key=' +
+          k +
+          '\n\n' +
+          'Айфон: Настройки → Календарь → Учётные записи → Добавить → Другое → ' +
+          'Подписной календарь → вставить ссылку.\n\n' +
+          'Андроид: открыть calendar.google.com на компьютере → слева «Другие календари» → ' +
+          '«Подписаться по URL» → вставить ссылку. В телефоне появится само.\n\n' +
+          'Дальше записи будут добавляться в календарь без вашего участия.',
+        reply_markup: MENU_TG,
+      });
+      return;
+    }
+
+    // ---- пошаговая запись: ждём имя и телефон ----
+    const st = await getState(env);
+    if (st.step === 'name' && !raw.startsWith('/')) {
+      const digits = (raw.match(/\d/g) || []).join('');
+      const phone = digits.length >= 10 ? raw.match(/[\d+()\s-]{10,}/)[0].trim() : '';
+      const name = raw.replace(/[\d+()\s-]{10,}/, '').trim() || 'Без имени';
+      const res = await createBooking(env, {
+        name: name,
+        phone: phone || 'не указан',
+        service: st.service,
+        day: st.day,
+        start: st.start,
+        silent: true,
+      });
+      await clearState(env);
+      await tg(env, 'sendMessage', {
+        chat_id: chatId,
+        text: res.ok
+          ? '✅ Записала\n\n📅 ' +
+            ruDay(st.day) +
+            '\n🕐 ' +
+            res.start +
+            ' — ' +
+            res.end +
+            '\n💅 ' +
+            st.service +
+            '\n👤 ' +
+            name +
+            (phone ? '\n📞 ' + phone : '')
+          : '❌ ' + res.error,
+        reply_markup: MENU_TG,
+      });
+      return;
+    }
+
+    if (cmd === '/start') {
+      // кнопки появляются под полем ввода и остаются там — печатать ничего не нужно
+      await tg(env, 'sendMessage', {
+        chat_id: chatId,
+        text:
+          'Здравствуйте, Анастасия!\n\nВнизу появились кнопки — всё делается нажатиями:\n\n' +
+          '✍️ Записать клиента — если позвонили напрямую\n' +
+          '📋 Мои записи — кто и когда придёт\n' +
+          '📅 График — отметить выходные\n' +
+          '📓 Блокнот — фамилии и всё, что нужно не забыть\n' +
+          '📱 Календарь на телефон — записи сами появятся в календаре',
+        reply_markup: MENU_TG,
+      });
+    } else if (cmd === '/grafik' || cmd === '/график') {
       await tgShowMonth(env, chatId, null, sched, now.getUTCFullYear(), now.getUTCMonth());
     } else if (cmd === '/zapisi' || cmd === '/записи') {
       await tg(env, 'sendMessage', { chat_id: chatId, text: await upcomingText(env) });
@@ -454,7 +834,8 @@ async function handleTelegram(env, update) {
     } else if (cmd.startsWith('/')) {
       await tg(env, 'sendMessage', {
         chat_id: chatId,
-        text: '/grafik — календарь, отметить выходные\n' +
+        text:
+          '/grafik — календарь, отметить выходные\n' +
           '/zapisi — ближайшие записи\n' +
           '/zametki — блокнот\n\n' +
           'Новые записи с сайта приходят сюда сами.\n' +
@@ -469,13 +850,86 @@ async function handleTelegram(env, update) {
         await tg(env, 'sendMessage', { chat_id: chatId, text: '✅ Записал к этой записи:\n' + note });
       } else {
         await addFreeNote(env, msg.text.trim());
-        await tg(env, 'sendMessage', { chat_id: chatId, text: '✅ Записал в блокнот. Посмотреть — /zametki' });
+        await tg(env, 'sendMessage', {
+          chat_id: chatId,
+          text: '✅ Записал в блокнот. Посмотреть — /zametki',
+        });
       }
     }
     return;
   }
 
   if (cb) {
+    const data0 = cb.data || '';
+
+    // ---- пошаговая запись клиента мастером ----
+    if (data0.startsWith('bm:')) {
+      const [yy, mm] = data0.slice(3).split('-').map(Number);
+      await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      await tg(env, 'editMessageReplyMarkup', {
+        chat_id: chatId,
+        message_id: cb.message.message_id,
+        reply_markup: tgKeyboard(bookDayButtons(sched, yy, mm - 1)),
+      });
+      return;
+    }
+    if (data0.startsWith('bd:')) {
+      await setState(env, { step: 'service', day: data0.slice(3) });
+      await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      await tg(env, 'editMessageText', {
+        chat_id: chatId,
+        message_id: cb.message.message_id,
+        text: '📅 ' + ruDay(data0.slice(3)) + '\n\nКакая услуга?',
+        reply_markup: tgKeyboard(serviceButtons()),
+      });
+      return;
+    }
+    if (data0.startsWith('bs:')) {
+      const st = await getState(env);
+      st.service = SERVICE_NAMES[parseInt(data0.slice(3), 10)];
+      st.step = 'slot';
+      await setState(env, st);
+      const sb = await slotButtons(env, st.day, st.service);
+      await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      await tg(env, 'editMessageText', {
+        chat_id: chatId,
+        message_id: cb.message.message_id,
+        text:
+          '📅 ' +
+          ruDay(st.day) +
+          '\n💅 ' +
+          st.service +
+          ' · ' +
+          DURATION[st.service] +
+          ' мин\n\n' +
+          (sb.count ? 'Во сколько?' : 'Свободного времени в этот день не осталось.'),
+        reply_markup: tgKeyboard(
+          sb.rows.length ? sb.rows : [[{ text: '← Другой день', data: 'bm:' + st.day.slice(0, 7) }]],
+        ),
+      });
+      return;
+    }
+    if (data0.startsWith('bt:')) {
+      const st = await getState(env);
+      st.start = parseInt(data0.slice(3), 10);
+      st.step = 'name';
+      await setState(env, st);
+      await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      await tg(env, 'editMessageText', {
+        chat_id: chatId,
+        message_id: cb.message.message_id,
+        text:
+          '📅 ' +
+          ruDay(st.day) +
+          '\n🕐 ' +
+          hhmm(st.start) +
+          '\n💅 ' +
+          st.service +
+          '\n\nНапишите одним сообщением имя и телефон.\nНапример: Иванова 89001234567',
+      });
+      return;
+    }
+
     // отмена записи — отдельная ветка, месяц перерисовывать не нужно
     if ((cb.data || '').startsWith('c:')) {
       const msg2 = await cancelBooking(env, parseInt(cb.data.slice(2), 10));
@@ -488,7 +942,8 @@ async function handleTelegram(env, update) {
     if (res.key) {
       // перечитываем график после правки, чтобы показать сохранённое, а не ожидаемое
       const fresh = await loadSchedule(env);
-      const y = parseInt(res.key.slice(0, 4), 10), m = parseInt(res.key.slice(5), 10) - 1;
+      const y = parseInt(res.key.slice(0, 4), 10),
+        m = parseInt(res.key.slice(5), 10) - 1;
       await tgShowMonth(env, chatId, cb.message.message_id, fresh, y, m);
     }
   }
@@ -500,7 +955,7 @@ async function maxApi(env, path, payload, query) {
   const url = MAX_API + path + (query ? query : '');
   const opts = {
     method: payload ? 'POST' : 'GET',
-    headers: { 'Authorization': env.MAX_TOKEN },
+    headers: { Authorization: env.MAX_TOKEN },
   };
   if (payload) {
     opts.headers['Content-Type'] = 'application/json';
@@ -509,18 +964,26 @@ async function maxApi(env, path, payload, query) {
   const r = await fetch(url, opts);
   const text = await r.text();
   if (!r.ok) console.log('MAX ' + path + ' -> ' + r.status + ' ' + text.slice(0, 200));
-  try { return JSON.parse(text); } catch (e) { return { raw: text, status: r.status }; }
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return { raw: text, status: r.status };
+  }
 }
 
 function maxKeyboard(rows) {
-  return [{
-    type: 'inline_keyboard',
-    payload: {
-      buttons: rows.map(function (row) {
-        return row.map(function (b) { return { type: 'callback', text: b.text, payload: b.data }; });
-      }),
+  return [
+    {
+      type: 'inline_keyboard',
+      payload: {
+        buttons: rows.map(function (row) {
+          return row.map(function (b) {
+            return { type: 'callback', text: b.text, payload: b.data };
+          });
+        }),
+      },
     },
-  }];
+  ];
 }
 
 async function maxSend(env, chatId, text, rows) {
@@ -541,34 +1004,44 @@ async function handleMax(env, update) {
     if (!chatId) return;
 
     /* Кто здесь мастер. В МАКСе нет постоянного идентификатора чата, который
-       можно прописать заранее, поэтому первого написавшего запоминаем как мастера.
-       Дальше сверяемся именно с запомненным чатом: в первой версии этой сверки
-       не было, и со второго сообщения мастер становился «посторонним». */
+можно прописать заранее, поэтому первого написавшего запоминаем как мастера.
+Дальше сверяемся именно с запомненным чатом: в первой версии этой сверки
+не было, и со второго сообщения мастер становился «посторонним». */
     const known = await getSetting(env, 'max_chat');
     const byId = env.MAX_ADMIN_ID && String(userId) === String(env.MAX_ADMIN_ID);
     if (!known) {
       await setSetting(env, 'max_chat', chatId);
     } else if (!byId && String(known) !== String(chatId)) {
-      await maxSend(env, chatId, 'Это служебный бот студии «Море красок».\n\nЗаписаться: ' + SITE + '\nПозвонить: ' + PHONE);
+      await maxSend(
+        env,
+        chatId,
+        'Это служебный бот студии «Море красок».\n\nЗаписаться: ' + SITE + '\nПозвонить: ' + PHONE,
+      );
       return;
     }
 
     const sched = await loadSchedule(env);
     const now = new Date();
-    if (text === '/start' || text === '/grafik' || text === 'график') {
-      const y = now.getUTCFullYear(), mo = now.getUTCMonth();
+    if (text === '/start') {
+      await maxSend(env, chatId, 'Здравствуйте, Анастасия! Всё делается кнопками ниже:', MENU_MAX);
+    } else if (text === '/grafik' || text === 'график') {
+      const y = now.getUTCFullYear(),
+        mo = now.getUTCMonth();
       await maxSend(env, chatId, monthText(sched, y, mo), calendarButtons(sched, y, mo));
     } else if (text === '/zapisi' || text === 'записи') {
       await maxSend(env, chatId, await upcomingText(env));
     } else if (text === '/zametki' || text === 'заметки') {
       await maxSend(env, chatId, await notesText(env));
     } else if (text.startsWith('/')) {
-      await maxSend(env, chatId,
+      await maxSend(
+        env,
+        chatId,
         '/grafik — календарь, отметить выходные\n' +
-        '/zapisi — ближайшие записи\n' +
-        '/zametki — блокнот\n\n' +
-        'Новые записи с сайта приходят сюда сами.\n' +
-        'Любой текст без команды сохраняется в блокнот.');
+          '/zapisi — ближайшие записи\n' +
+          '/zametki — блокнот\n\n' +
+          'Новые записи с сайта приходят сюда сами.\n' +
+          'Любой текст без команды сохраняется в блокнот.',
+      );
     } else {
       // в МАКСе ответ на конкретное сообщение не отслеживаем — пишем в общий блокнот
       await addFreeNote(env, ((m.body && m.body.text) || '').trim());
@@ -582,20 +1055,81 @@ async function handleMax(env, update) {
     const cbk = update.callback;
     const chatId = update.message && update.message.recipient && update.message.recipient.chat_id;
     const data = cbk.payload || '';
+
+    if (data.startsWith('menu:')) {
+      const what = data.slice(5);
+      let out = '';
+      if (what === 'zapisi') {
+        out = await upcomingText(env);
+      } else if (what === 'zametki') {
+        out = await notesText(env);
+      } else if (what === 'cal') {
+        const k = await calendarKey(env);
+        out =
+          'Ссылка для подписки на календарь:' +
+          NL +
+          SELF_URL +
+          '/calendar.ics?key=' +
+          k +
+          NL +
+          NL +
+          'Айфон: Настройки → Календарь → Учётные записи → Добавить → Другое → Подписной календарь.' +
+          NL +
+          'Андроид: calendar.google.com на компьютере → «Другие календари» → «Подписаться по URL».';
+      } else if (what === 'grafik') {
+        const sc = await loadSchedule(env);
+        const t = new Date();
+        await maxApi(
+          env,
+          '/answers',
+          {
+            message: {
+              text: monthText(sc, t.getUTCFullYear(), t.getUTCMonth()),
+              attachments: maxKeyboard(calendarButtons(sc, t.getUTCFullYear(), t.getUTCMonth())),
+            },
+          },
+          '?callback_id=' + encodeURIComponent(cbk.callback_id),
+        );
+        return;
+      } else if (what === 'zapis') {
+        out =
+          'Записать клиента пока удобнее в Telegram — там пошаговые кнопки.' +
+          NL +
+          'Здесь можно посмотреть записи и график.';
+      }
+      await maxApi(
+        env,
+        '/answers',
+        { message: { text: out, attachments: maxKeyboard(MENU_MAX) } },
+        '?callback_id=' + encodeURIComponent(cbk.callback_id),
+      );
+      return;
+    }
+
     if (data.startsWith('c:')) {
       const msg2 = await cancelBooking(env, parseInt(data.slice(2), 10));
-      await maxApi(env, '/answers', { message: { text: msg2 }, notification: 'Отменено' },
-        '?callback_id=' + encodeURIComponent(cbk.callback_id));
+      await maxApi(
+        env,
+        '/answers',
+        { message: { text: msg2 }, notification: 'Отменено' },
+        '?callback_id=' + encodeURIComponent(cbk.callback_id),
+      );
       return;
     }
     const res = await applyTap(env, data);
     if (res.key) {
       const fresh = await loadSchedule(env);
-      const y = parseInt(res.key.slice(0, 4), 10), mo = parseInt(res.key.slice(5), 10) - 1;
-      await maxApi(env, '/answers', {
-        message: { text: monthText(fresh, y, mo), attachments: maxKeyboard(calendarButtons(fresh, y, mo)) },
-        notification: res.toast || undefined,
-      }, '?callback_id=' + encodeURIComponent(cbk.callback_id));
+      const y = parseInt(res.key.slice(0, 4), 10),
+        mo = parseInt(res.key.slice(5), 10) - 1;
+      await maxApi(
+        env,
+        '/answers',
+        {
+          message: { text: monthText(fresh, y, mo), attachments: maxKeyboard(calendarButtons(fresh, y, mo)) },
+          notification: res.toast || undefined,
+        },
+        '?callback_id=' + encodeURIComponent(cbk.callback_id),
+      );
     }
   }
 }
@@ -603,7 +1137,10 @@ async function handleMax(env, update) {
 // ---------- заявка с сайта ----------
 
 function clean(v, max) {
-  return String(v == null ? '' : v).replace(/[<>]/g, '').trim().slice(0, max);
+  return String(v == null ? '' : v)
+    .replace(/[<>]/g, '')
+    .trim()
+    .slice(0, max);
 }
 
 async function handleBooking(env, body) {
@@ -613,7 +1150,7 @@ async function handleBooking(env, body) {
   const date = clean(body.date, 20);
 
   if (!name || !phone) return { ok: false, error: 'Укажите имя и телефон' };
-  if (clean(body.website, 50)) return { ok: true };  // ловушка для ботов
+  if (clean(body.website, 50)) return { ok: true }; // ловушка для ботов
 
   const lines = ['🔔 Новая заявка с сайта', '', '👤 ' + name, '📞 ' + phone];
   if (service) lines.push('💅 ' + service);
@@ -623,13 +1160,21 @@ async function handleBooking(env, body) {
   // шлём в оба мессенджера; молчание одного не должно ронять заявку
   const jobs = [];
   if (env.TG_TOKEN && env.TG_ADMIN_ID) {
-    jobs.push(tg(env, 'sendMessage', { chat_id: env.TG_ADMIN_ID, text: text }).catch(function (e) { console.log('TG: ' + e.message); }));
+    jobs.push(
+      tg(env, 'sendMessage', { chat_id: env.TG_ADMIN_ID, text: text }).catch(function (e) {
+        console.log('TG: ' + e.message);
+      }),
+    );
   }
   if (env.MAX_TOKEN) {
-    jobs.push((async function () {
-      const chat = await getSetting(env, 'max_chat');
-      if (chat) await maxSend(env, chat, text);
-    })().catch(function (e) { console.log('MAX: ' + e.message); }));
+    jobs.push(
+      (async function () {
+        const chat = await getSetting(env, 'max_chat');
+        if (chat) await maxSend(env, chat, text);
+      })().catch(function (e) {
+        console.log('MAX: ' + e.message);
+      }),
+    );
   }
   await Promise.all(jobs);
   return { ok: true };
@@ -650,13 +1195,21 @@ async function handleDiag(env) {
   const sched = await loadSchedule(env);
   return {
     секреты: {
-      TG_TOKEN: !!env.TG_TOKEN, TG_ADMIN_ID: !!env.TG_ADMIN_ID,
-      MAX_TOKEN: !!env.MAX_TOKEN, ADMIN_KEY: !!env.ADMIN_KEY,
+      TG_TOKEN: !!env.TG_TOKEN,
+      TG_ADMIN_ID: !!env.TG_ADMIN_ID,
+      MAX_TOKEN: !!env.MAX_TOKEN,
+      ADMIN_KEY: !!env.ADMIN_KEY,
     },
-    база: { месяцев_в_графике: Object.keys(sched.off).length, выходных_всего: Object.values(sched.off).reduce(function(a,b){return a+b.length},0), чат_макса: await getSetting(env, 'max_chat') },
+    база: {
+      месяцев_в_графике: Object.keys(sched.off).length,
+      выходных_всего: Object.values(sched.off).reduce(function (a, b) {
+        return a + b.length;
+      }, 0),
+      чат_макса: await getSetting(env, 'max_chat'),
+    },
     связь: await Promise.all([
       probe('Telegram getMe', 'https://api.telegram.org/bot' + env.TG_TOKEN + '/getMe'),
-      probe('МАКС me', MAX_API + '/me', { headers: { 'Authorization': env.MAX_TOKEN || '' } }),
+      probe('МАКС me', MAX_API + '/me', { headers: { Authorization: env.MAX_TOKEN || '' } }),
     ]),
   };
 }
@@ -670,7 +1223,9 @@ async function handleSetup(env, url) {
   const base = url.origin;
   const out = {};
   if (env.TG_TOKEN) {
-    const r = await fetch('https://api.telegram.org/bot' + env.TG_TOKEN + '/setWebhook?url=' + encodeURIComponent(base + '/tg'));
+    const r = await fetch(
+      'https://api.telegram.org/bot' + env.TG_TOKEN + '/setWebhook?url=' + encodeURIComponent(base + '/tg'),
+    );
     out.telegram = await r.json();
   }
   if (env.MAX_TOKEN) {
@@ -685,6 +1240,19 @@ async function handleSetup(env, url) {
 // ---------- точка входа ----------
 
 export default {
+  /* Раз в сутки убираем старое. Записи с именами и телефонами храним
+     полгода: этого хватает, чтобы узнать постоянного клиента, и телефоны
+     не копятся годами. Заметки живут год. */
+  async scheduled(event, env, ctx) {
+    const cut = new Date(Date.now() - 182 * 86400000).toISOString().slice(0, 10);
+    const cutNotes = new Date(Date.now() - 365 * 86400000).toISOString();
+    const r = await env.DB.batch([
+      env.DB.prepare('DELETE FROM bookings WHERE day < ?').bind(cut),
+      env.DB.prepare('DELETE FROM notes WHERE created_at < ?').bind(cutNotes),
+    ]);
+    console.log('Очистка: записей ' + r[0].meta.changes + ', заметок ' + r[1].meta.changes);
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -697,7 +1265,7 @@ export default {
       'Access-Control-Allow-Origin': allowed ? origin : SITE,
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Vary': 'Origin',
+      Vary: 'Origin',
     };
     const json = function (data, status, extra) {
       return new Response(JSON.stringify(data, null, 1), {
@@ -712,6 +1280,19 @@ export default {
       if (path === '/schedule.json') {
         const sched = await loadSchedule(env);
         return json(sched, 200, Object.assign({ 'Cache-Control': 'public, max-age=120' }, cors));
+      }
+
+      // подписка календаря: ключ отдельный, в ссылке, и открывает только просмотр
+      if (path === '/calendar.ics') {
+        const k = await getSetting(env, 'cal_key');
+        if (!k || url.searchParams.get('key') !== k) return new Response('Нет доступа', { status: 403 });
+        return new Response(await calendarIcs(env), {
+          headers: {
+            'Content-Type': 'text/calendar; charset=utf-8',
+            'Cache-Control': 'public, max-age=300',
+            'Content-Disposition': 'inline; filename="more-krasok.ics"',
+          },
+        });
       }
 
       if (path === '/diag') return json(await handleDiag(env));
@@ -730,26 +1311,39 @@ export default {
         const day = url.searchParams.get('day') || '';
         if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json({ error: 'Нужен день' }, 400, cors);
         const busy = await busyOn(env, day);
-        return json({ busy: busy.map(function (b) { return { start: hhmm(b.start_min), end: hhmm(b.end_min) }; }) }, 200, cors);
+        return json(
+          {
+            busy: busy.map(function (b) {
+              return { start: hhmm(b.start_min), end: hhmm(b.end_min) };
+            }),
+          },
+          200,
+          cors,
+        );
       }
 
       if (path === '/book' && request.method === 'POST') {
-        const body = await request.json().catch(function () { return {}; });
+        const body = await request.json().catch(function () {
+          return {};
+        });
         // с выбранным временем — бронь; без него — просто просьба перезвонить
-        const res = (body.day && body.start != null)
-          ? await createBooking(env, body)
-          : await handleBooking(env, body);
+        const res =
+          body.day && body.start != null ? await createBooking(env, body) : await handleBooking(env, body);
         return json(res, res.ok ? 200 : 400, cors);
       }
 
       // вебхуки: всегда отвечаем 200, иначе мессенджер шлёт одно и то же по кругу
       if (path === '/tg' && request.method === 'POST') {
-        const body = await request.json().catch(function () { return {}; });
+        const body = await request.json().catch(function () {
+          return {};
+        });
         await handleTelegram(env, body);
         return new Response('ok');
       }
       if (path === '/max' && request.method === 'POST') {
-        const body = await request.json().catch(function () { return {}; });
+        const body = await request.json().catch(function () {
+          return {};
+        });
         await handleMax(env, body);
         return new Response('ok');
       }
@@ -757,8 +1351,9 @@ export default {
       return new Response('Море красок', { status: 200 });
     } catch (e) {
       console.log('Ошибка: ' + e.stack);
-      if (path === '/book') return json({ ok: false, error: 'Не удалось отправить. Позвоните: ' + PHONE }, 500, cors);
-      return new Response('ok');  // мессенджеру всё равно отвечаем успехом
+      if (path === '/book')
+        return json({ ok: false, error: 'Не удалось отправить. Позвоните: ' + PHONE }, 500, cors);
+      return new Response('ok'); // мессенджеру всё равно отвечаем успехом
     }
   },
 };
