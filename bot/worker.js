@@ -18,7 +18,8 @@
  * Хранилище: база D1 (привязка DB).
  *   open_months  — месяцы, за которые график опубликован
  *   off_days     — выходные, по строке на день
- *   bookings     — записи клиентов: день, время, услуга, имя, телефон
+ *   bookings     — записи клиентов: день, время, услуга, имя, телефон, пометка
+ *   notes        — блокнот мастера
  *   settings     — служебное, в том числе чат мастера в МАКСе
  *
  * Персональные данные лежат только в bookings и наружу не отдаются:
@@ -295,8 +296,14 @@ async function notifyMaster(env, b) {
   if (env.TG_TOKEN && env.TG_ADMIN_ID) {
     jobs.push(tg(env, 'sendMessage', {
       chat_id: env.TG_ADMIN_ID,
-      text: text,
+      text: text + '\n\n💬 Ответьте на это сообщение, чтобы добавить фамилию или пометку',
       reply_markup: { inline_keyboard: [[{ text: '✖ Отменить запись', callback_data: 'c:' + b.id }]] },
+    }).then(function (r) {
+      // запоминаем номер сообщения: по ответу на него найдём эту запись
+      if (r && r.ok && r.result) {
+        return env.DB.prepare('UPDATE bookings SET tg_msg_id = ? WHERE id = ?')
+          .bind(r.result.message_id, b.id).run();
+      }
     }).catch(function (e) { console.log('TG: ' + e.message); }));
   }
   if (env.MAX_TOKEN) {
@@ -314,7 +321,7 @@ async function notifyMaster(env, b) {
 async function upcomingText(env) {
   const now = nowEkb();
   const r = await env.DB.prepare(
-    "SELECT id, day, start_min, end_min, service, name, phone FROM bookings " +
+    "SELECT id, day, start_min, end_min, service, name, phone, note FROM bookings " +
     "WHERE day >= ? AND status != 'cancelled' ORDER BY day, start_min LIMIT 20"
   ).bind(now.day).all();
   if (!r.results.length) return 'Записей пока нет.';
@@ -329,8 +336,50 @@ async function upcomingText(env) {
     }
     out += '  ' + hhmm(b.start_min) + '–' + hhmm(b.end_min) + '  ' + b.service +
       '\n     ' + b.name + ', ' + b.phone + '\n';
+    if (b.note) out += '     💬 ' + b.note.replace(/\n/g, '\n        ') + '\n';
   }
   return out;
+}
+
+/* ---- Заметки ----
+   Сайт спрашивает у клиента только имя, а мастеру нужна фамилия и мелочи
+   вроде «гель красный». Поэтому любой обычный текст, отправленный боту,
+   сохраняется: ответом на уведомление о записи — прямо к этой записи,
+   просто так — в общий блокнот. Никаких команд запоминать не нужно. */
+
+async function addNoteToBooking(env, id, text) {
+  const b = await env.DB.prepare('SELECT note FROM bookings WHERE id = ?').bind(id).first();
+  if (!b) return null;
+  const note = (b.note ? b.note + '\n' : '') + text;
+  await env.DB.prepare('UPDATE bookings SET note = ? WHERE id = ?').bind(note, id).run();
+  return note;
+}
+
+async function addFreeNote(env, text) {
+  await env.DB.prepare('INSERT INTO notes (text, created_at) VALUES (?, ?)')
+    .bind(text, new Date().toISOString()).run();
+}
+
+async function notesText(env) {
+  const r = await env.DB.prepare('SELECT text, created_at FROM notes ORDER BY id DESC LIMIT 30').all();
+  if (!r.results.length) {
+    return 'Блокнот пуст.\n\nПросто напишите боту любой текст — он сохранится сюда.\n' +
+      'А если ответить на сообщение о записи, заметка прицепится к ней.';
+  }
+  let out = '📓 Блокнот:\n';
+  for (const n of r.results) {
+    const d = new Date(new Date(n.created_at).getTime() + EKB * 60000);
+    out += '\n' + String(d.getUTCDate()).padStart(2, '0') + '.' +
+      String(d.getUTCMonth() + 1).padStart(2, '0') + ' — ' + n.text;
+  }
+  return out;
+}
+
+/* По какой записи пришёл ответ. Telegram сообщает, на какое сообщение
+   отвечают, а мы при отправке уведомления запомнили его номер. */
+async function bookingByTgMessage(env, msgId) {
+  if (!msgId) return null;
+  return env.DB.prepare('SELECT id FROM bookings WHERE tg_msg_id = ?').bind(msgId).first();
 }
 
 async function cancelBooking(env, id) {
@@ -400,11 +449,28 @@ async function handleTelegram(env, update) {
       await tgShowMonth(env, chatId, null, sched, now.getUTCFullYear(), now.getUTCMonth());
     } else if (cmd === '/zapisi' || cmd === '/записи') {
       await tg(env, 'sendMessage', { chat_id: chatId, text: await upcomingText(env) });
-    } else {
+    } else if (cmd === '/zametki' || cmd === '/заметки') {
+      await tg(env, 'sendMessage', { chat_id: chatId, text: await notesText(env) });
+    } else if (cmd.startsWith('/')) {
       await tg(env, 'sendMessage', {
         chat_id: chatId,
-        text: '/grafik — календарь, отметить выходные\n/zapisi — ближайшие записи\n\nНовые записи с сайта приходят сюда сами.',
+        text: '/grafik — календарь, отметить выходные\n' +
+          '/zapisi — ближайшие записи\n' +
+          '/zametki — блокнот\n\n' +
+          'Новые записи с сайта приходят сюда сами.\n' +
+          'Любой текст без команды сохраняется в блокнот, а ответ на запись — прямо к ней.',
       });
+    } else {
+      // обычный текст — это заметка
+      const reply = msg.reply_to_message && msg.reply_to_message.message_id;
+      const b = await bookingByTgMessage(env, reply);
+      if (b) {
+        const note = await addNoteToBooking(env, b.id, msg.text.trim());
+        await tg(env, 'sendMessage', { chat_id: chatId, text: '✅ Записал к этой записи:\n' + note });
+      } else {
+        await addFreeNote(env, msg.text.trim());
+        await tg(env, 'sendMessage', { chat_id: chatId, text: '✅ Записал в блокнот. Посмотреть — /zametki' });
+      }
     }
     return;
   }
@@ -492,8 +558,21 @@ async function handleMax(env, update) {
     if (text === '/start' || text === '/grafik' || text === 'график') {
       const y = now.getUTCFullYear(), mo = now.getUTCMonth();
       await maxSend(env, chatId, monthText(sched, y, mo), calendarButtons(sched, y, mo));
+    } else if (text === '/zapisi' || text === 'записи') {
+      await maxSend(env, chatId, await upcomingText(env));
+    } else if (text === '/zametki' || text === 'заметки') {
+      await maxSend(env, chatId, await notesText(env));
+    } else if (text.startsWith('/')) {
+      await maxSend(env, chatId,
+        '/grafik — календарь, отметить выходные\n' +
+        '/zapisi — ближайшие записи\n' +
+        '/zametki — блокнот\n\n' +
+        'Новые записи с сайта приходят сюда сами.\n' +
+        'Любой текст без команды сохраняется в блокнот.');
     } else {
-      await maxSend(env, chatId, '/grafik — календарь, отметить выходные\n\nЗаявки с сайта приходят сюда сами.');
+      // в МАКСе ответ на конкретное сообщение не отслеживаем — пишем в общий блокнот
+      await addFreeNote(env, ((m.body && m.body.text) || '').trim());
+      await maxSend(env, chatId, '✅ Записал в блокнот. Посмотреть — /zametki');
     }
     return;
   }
