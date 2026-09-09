@@ -595,6 +595,35 @@ async function slotButtons(env, day, service) {
   return { rows: rows, count: list.length };
 }
 
+/* Последний шаг записи клиента: мастер пишет «Иванова 89001234567» одной
+   строкой. Длинную цепочку цифр считаем телефоном, остальное — именем.
+   Общая для обоих мессенджеров, чтобы поведение не разъезжалось. */
+async function bookFromLine(env, st, raw) {
+  const line = String(raw || '').trim();
+  const m = line.match(/[\d+()\s-]{10,}/);
+  const phone = m && (m[0].match(/\d/g) || []).length >= 10 ? m[0].trim() : '';
+  const name = (phone ? line.replace(m[0], '') : line).trim() || 'Без имени';
+
+  const res = await createBooking(env, {
+    name: name,
+    phone: phone || 'не указан',
+    service: st.service,
+    day: st.day,
+    start: st.start,
+    silent: true, // записала сама мастер — уведомлять её же незачем
+  });
+  if (!res.ok) return { ok: false, text: '❌ ' + res.error };
+  return {
+    ok: true,
+    text:
+      '✅ Записала' + NL + NL +
+      '📅 ' + ruDay(st.day) + NL +
+      '🕐 ' + res.start + ' — ' + res.end + NL +
+      '💅 ' + st.service + NL +
+      '👤 ' + name + (phone ? NL + '📞 ' + phone : ''),
+  };
+}
+
 function ruDay(day) {
   const p = day.split('-');
   const d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
@@ -780,35 +809,9 @@ async function handleTelegram(env, update) {
     // ---- пошаговая запись: ждём имя и телефон ----
     const st = await getState(env);
     if (st.step === 'name' && !raw.startsWith('/')) {
-      const digits = (raw.match(/\d/g) || []).join('');
-      const phone = digits.length >= 10 ? raw.match(/[\d+()\s-]{10,}/)[0].trim() : '';
-      const name = raw.replace(/[\d+()\s-]{10,}/, '').trim() || 'Без имени';
-      const res = await createBooking(env, {
-        name: name,
-        phone: phone || 'не указан',
-        service: st.service,
-        day: st.day,
-        start: st.start,
-        silent: true,
-      });
+      const res = await bookFromLine(env, st, raw);
       await clearState(env);
-      await tg(env, 'sendMessage', {
-        chat_id: chatId,
-        text: res.ok
-          ? '✅ Записала\n\n📅 ' +
-            ruDay(st.day) +
-            '\n🕐 ' +
-            res.start +
-            ' — ' +
-            res.end +
-            '\n💅 ' +
-            st.service +
-            '\n👤 ' +
-            name +
-            (phone ? '\n📞 ' + phone : '')
-          : '❌ ' + res.error,
-        reply_markup: MENU_TG,
-      });
+      await tg(env, 'sendMessage', { chat_id: chatId, text: res.text, reply_markup: MENU_TG });
       return;
     }
 
@@ -1043,9 +1046,17 @@ async function handleMax(env, update) {
           'Любой текст без команды сохраняется в блокнот.',
       );
     } else {
-      // в МАКСе ответ на конкретное сообщение не отслеживаем — пишем в общий блокнот
-      await addFreeNote(env, ((m.body && m.body.text) || '').trim());
-      await maxSend(env, chatId, '✅ Записал в блокнот. Посмотреть — /zametki');
+      const st = await getState(env);
+      if (st.step === 'name') {
+        // последний шаг записи клиента: имя и телефон одной строкой
+        const res = await bookFromLine(env, st, (m.body && m.body.text) || '');
+        await clearState(env);
+        await maxSend(env, chatId, res.text, MENU_MAX);
+      } else {
+        // ответ на конкретное сообщение в МАКСе не отслеживаем — пишем в общий блокнот
+        await addFreeNote(env, ((m.body && m.body.text) || '').trim());
+        await maxSend(env, chatId, '✅ Записал в блокнот. Посмотреть — /zametki');
+      }
     }
     return;
   }
@@ -1055,6 +1066,67 @@ async function handleMax(env, update) {
     const cbk = update.callback;
     const chatId = update.message && update.message.recipient && update.message.recipient.chat_id;
     const data = cbk.payload || '';
+
+    /* Пошаговая запись клиента: день → услуга → время → имя с телефоном.
+       Ответ на нажатие в МАКСе один — /answers, он же и перерисовывает
+       сообщение, поэтому каждый шаг отдаёт новый текст и новые кнопки. */
+    const step = async function (text, rows) {
+      await maxApi(
+        env,
+        '/answers',
+        { message: { text: text, attachments: maxKeyboard(rows) } },
+        '?callback_id=' + encodeURIComponent(cbk.callback_id),
+      );
+    };
+
+    if (data === 'menu:zapis' || data.startsWith('bm:')) {
+      const sc = await loadSchedule(env);
+      let y, mo;
+      if (data.startsWith('bm:')) {
+        y = parseInt(data.slice(3, 7), 10);
+        mo = parseInt(data.slice(8), 10) - 1;
+      } else {
+        const t = new Date();
+        y = t.getUTCFullYear();
+        mo = t.getUTCMonth();
+      }
+      await setState(env, { step: 'day' });
+      await step('Выберите день записи:', bookDayButtons(sc, y, mo));
+      return;
+    }
+
+    if (data.startsWith('bd:')) {
+      await setState(env, { step: 'service', day: data.slice(3) });
+      await step('📅 ' + ruDay(data.slice(3)) + NL + NL + 'Какая услуга?', serviceButtons());
+      return;
+    }
+
+    if (data.startsWith('bs:')) {
+      const st = await getState(env);
+      st.service = SERVICE_NAMES[parseInt(data.slice(3), 10)];
+      st.step = 'slot';
+      await setState(env, st);
+      const sb = await slotButtons(env, st.day, st.service);
+      await step(
+        '📅 ' + ruDay(st.day) + NL + '💅 ' + st.service + ' · ' + DURATION[st.service] + ' мин' + NL + NL +
+          (sb.count ? 'Во сколько?' : 'Свободного времени в этот день не осталось.'),
+        sb.rows.length ? sb.rows : [[{ text: '← Другой день', data: 'bm:' + st.day.slice(0, 7) }]],
+      );
+      return;
+    }
+
+    if (data.startsWith('bt:')) {
+      const st = await getState(env);
+      st.start = parseInt(data.slice(3), 10);
+      st.step = 'name';
+      await setState(env, st);
+      await step(
+        '📅 ' + ruDay(st.day) + NL + '🕐 ' + hhmm(st.start) + NL + '💅 ' + st.service + NL + NL +
+          'Напишите одним сообщением имя и телефон.' + NL + 'Например: Иванова 89001234567',
+        [],
+      );
+      return;
+    }
 
     if (data.startsWith('menu:')) {
       const what = data.slice(5);
@@ -1091,11 +1163,6 @@ async function handleMax(env, update) {
           '?callback_id=' + encodeURIComponent(cbk.callback_id),
         );
         return;
-      } else if (what === 'zapis') {
-        out =
-          'Записать клиента пока удобнее в Telegram — там пошаговые кнопки.' +
-          NL +
-          'Здесь можно посмотреть записи и график.';
       }
       await maxApi(
         env,
@@ -1193,7 +1260,27 @@ async function handleDiag(env) {
     }
   }
   const sched = await loadSchedule(env);
+
+  // с кем бот в МАКСе уже переписывался — по этому видно, заходила ли мастер
+  let maxChats = 'не проверялось';
+  try {
+    const r = await maxApi(env, '/chats', null, '?count=20');
+    maxChats = (r.chats || []).map(function (c) {
+      return {
+        id: c.chat_id,
+        тип: c.type,
+        участников: c.participants_count,
+        последнее_сообщение: c.last_event_time
+          ? new Date(c.last_event_time + EKB * 60000).toISOString().slice(0, 16).replace('T', ' ')
+          : null,
+      };
+    });
+  } catch (e) {
+    maxChats = 'ошибка: ' + e.message;
+  }
+
   return {
+    диалоги_в_максе: maxChats,
     секреты: {
       TG_TOKEN: !!env.TG_TOKEN,
       TG_ADMIN_ID: !!env.TG_ADMIN_ID,
