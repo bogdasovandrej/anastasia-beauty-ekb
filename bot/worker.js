@@ -959,17 +959,18 @@ async function handleClientBot(env, update) {
 /* Раз в день: клиентам, записанным через бота, — напоминание накануне,
    мастеру — расписание на сегодня. Неявки чаще всего от забывчивости,
    и одно сообщение накануне снимает большую их часть. */
-async function sendReminders(env) {
+async function sendReminders(env, утро) {
   const now = nowEkb();
-  const t = new Date(Date.now() + EKB * 60000);
-  t.setUTCDate(t.getUTCDate() + 1);
-  const tomorrow = t.toISOString().slice(0, 10);
 
+  /* Напоминаем примерно за три часа до визита. Проверка идёт каждые полчаса,
+     поэтому берём окно от двух до трёх с половиной часов: сообщение уйдёт
+     ровно один раз и заведомо не позже, чем за два часа до начала. */
   const r = await env.DB.prepare(
     'SELECT id, day, start_min, end_min, service, name, client_chat, client_kind FROM bookings ' +
-      "WHERE day = ? AND status != 'cancelled' AND reminded = 0 AND client_chat IS NOT NULL",
+      "WHERE day = ? AND status != 'cancelled' AND reminded = 0 AND client_chat IS NOT NULL " +
+      'AND (start_min - ?) BETWEEN 120 AND 210',
   )
-    .bind(tomorrow)
+    .bind(now.day, now.min)
     .all();
 
   for (const b of r.results) {
@@ -977,13 +978,11 @@ async function sendReminders(env) {
       'Напоминаем о записи 🌸' +
       NL +
       NL +
-      '📅 завтра, ' +
-      ruDay(b.day) +
-      NL +
-      '🕐 ' +
+      '🕐 сегодня в ' +
       hhmm(b.start_min) +
-      ' — ' +
-      hhmm(b.end_min) +
+      ', примерно через ' +
+      Math.round((b.start_min - now.min) / 60) +
+      ' ч' +
       NL +
       '💅 ' +
       b.service +
@@ -1003,7 +1002,8 @@ async function sendReminders(env) {
     }
   }
 
-  // мастеру — что сегодня
+  // мастеру — что сегодня; только в утренний запуск
+  if (!утро) return { напомнили: r.results.length, записей_сегодня: null };
   const today = await env.DB.prepare(
     'SELECT start_min, end_min, service, name, phone, note FROM bookings ' +
       "WHERE day = ? AND status != 'cancelled' ORDER BY start_min",
@@ -1945,10 +1945,24 @@ async function handleSetup(env, url) {
 // ---------- точка входа ----------
 
 export default {
-  /* Раз в сутки убираем старое. Записи с именами и телефонами храним
-     полгода: этого хватает, чтобы узнать постоянного клиента, и телефоны
-     не копятся годами. Заметки живут год. */
+  /* Задача идёт каждые полчаса — так часто нужно только напоминаниям,
+     которые уходят примерно за три часа до визита. Уборка и утренняя
+     сводка мастеру нужны раз в день, поэтому они по времени. */
   async scheduled(event, env, ctx) {
+    const t = new Date(Date.now() + EKB * 60000);
+    const утро = t.getUTCHours() === 8 && t.getUTCMinutes() < 30;
+
+    try {
+      const rem = await sendReminders(env, утро);
+      console.log('Напоминания: ' + JSON.stringify(rem));
+    } catch (e) {
+      console.log('Напоминания упали: ' + e.message);
+    }
+
+    if (!утро) return;
+
+    /* Записи с именами и телефонами храним полгода: этого хватает, чтобы
+       узнать постоянного клиента, и телефоны не копятся годами. Заметки — год. */
     const cut = new Date(Date.now() - 182 * 86400000).toISOString().slice(0, 10);
     const cutNotes = new Date(Date.now() - 365 * 86400000).toISOString();
     const r = await env.DB.batch([
@@ -1956,12 +1970,6 @@ export default {
       env.DB.prepare('DELETE FROM notes WHERE created_at < ?').bind(cutNotes),
     ]);
     console.log('Очистка: записей ' + r[0].meta.changes + ', заметок ' + r[1].meta.changes);
-    try {
-      const rem = await sendReminders(env);
-      console.log('Напоминания: ' + JSON.stringify(rem));
-    } catch (e) {
-      console.log('Напоминания упали: ' + e.message);
-    }
   },
 
   async fetch(request, env) {
