@@ -208,10 +208,12 @@ a{color:inherit}
 .card:hover{transform:translateY(-8px);box-shadow:var(--sh-md);border-color:transparent}
 .card::after{content:'';position:absolute;inset:0;border-radius:inherit;padding:1.5px;background:var(--grad-brand);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .45s;pointer-events:none;z-index:3}
 .card:hover::after{opacity:1}
-.card .tile{width:60px;height:60px;border-radius:18px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;margin-bottom:20px;transition:transform .45s var(--ease),background .45s}
-.card:hover .tile{transform:rotate(-6deg) scale(1.06);background:var(--rose-soft)}
-.card .tile img{width:34px;height:34px}
-.card .body{padding:28px 24px 24px;display:flex;flex-direction:column;flex:1}
+/* Иллюстрации нарисованы под сайт: 560×420 с градиентным фоном.
+   Показываем их во всю ширину карточки, а не значком — ради этого они и рисовались. */
+.card .shot{aspect-ratio:4/3;overflow:hidden;background:var(--surface-2)}
+.card .shot img{width:100%;height:100%;object-fit:cover;transition:transform .7s var(--ease)}
+.card:hover .shot img{transform:scale(1.05)}
+.card .body{padding:22px 24px 24px;display:flex;flex-direction:column;flex:1}
 .card h3{font-family:var(--font-d);font-size:16px;font-weight:600;margin-bottom:8px}
 .card .desc{font-size:13.5px;color:var(--ink-2);flex:1}
 .card .meta{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:20px;padding-top:16px;border-top:1px dashed var(--line)}
@@ -384,7 +386,7 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
     <div class="sec-head rv">
       <span class="h-lbl">Услуги и цены</span>
       <h2 class="h2">Красота в каждой детали</h2>
-      <p class="sub">Честные цены и профессиональные материалы. Точную стоимость окрашивания и завивки подскажу после консультации.</p>
+      <p class="sub">Честные цены и профессиональные материалы. Итоговая стоимость окрашивания и завивки зависит от длины и густоты волос — скажу точно на консультации.</p>
     </div>
     <div class="bento" id="bento"></div>
   </div>
@@ -493,8 +495,8 @@ document.getElementById('perks').innerHTML=PERKS.map(function(p,k){
 var SERVICES=[
   {ic:'svc-manicure',img:'manicure',n:'Маникюр',d:'Покрытие гель-лак, дизайн, уход за ногтями и кутикулой.',t:'2 часа',p:'от 1800₽'},
   {ic:'svc-pedicure',img:'pedicure',n:'Педикюр',d:'Аппаратный педикюр с покрытием. Аккуратно и гигиенично.',t:'1–1.5 ч',p:'от 2000₽'},
-  {ic:'svc-coloring',img:'coloring',n:'Окрашивание',d:'Тонирование, окрашивание корней, мелирование, балаяж.',t:'1.5–3 ч',p:'по запросу',req:true},
-  {ic:'svc-perm',img:'perm',n:'Химзавивка',d:'Биозавивка и классическая — устойчивая форма надолго.',t:'~2 часа',p:'по запросу',req:true},
+  {ic:'svc-coloring',img:'coloring',n:'Окрашивание',d:'Тонирование, окрашивание корней, мелирование, балаяж.',t:'1.5–3 ч',p:'от 1500₽'},
+  {ic:'svc-perm',img:'perm',n:'Химзавивка',d:'Биозавивка и классическая — устойчивая форма надолго.',t:'~2 часа',p:'от 2500₽'},
   {ic:'svc-haircut-women',img:'haircut-women',n:'Женская стрижка',d:'С учётом формы лица и пожеланий клиента.',t:'30 мин',p:'от 600₽'},
   {ic:'svc-haircut-men',img:'haircut-men',n:'Мужская стрижка',d:'Аккуратная классическая или современная.',t:'30 мин',p:'от 400₽'},
   {ic:'svc-haircut-kids',img:'haircut-kids',n:'Детская стрижка',d:'Комфортно для детей, в спокойной обстановке.',t:'30 мин',p:'от 400₽'},
@@ -503,9 +505,9 @@ var SERVICES=[
 document.getElementById('bento').innerHTML=SERVICES.map(function(s,k){
   return '<div class="card rv" style="--d:'+((k%4)*.08)+'s">'+
     '<a class="go" href="#booking" aria-label="Записаться: '+s.n+'">↗</a>'+
-    '<div class="body"><div class="tile"><img src="images/'+s.ic+'.svg" alt="" width="34" height="34"></div>'+
-    '<h3>'+s.n+'</h3><p class="desc">'+s.d+'</p>'+
-    '<div class="meta"><span class="price">'+(s.req?'<small>по запросу</small>':s.p)+'</span><span class="dur">⏱ '+s.t+'</span></div></div></div>';
+    '<div class="shot"><img src="images/'+s.ic+'.svg" alt="'+s.n+'" width="560" height="420" loading="lazy"></div>'+
+    '<div class="body"><h3>'+s.n+'</h3><p class="desc">'+s.d+'</p>'+
+    '<div class="meta"><span class="price">'+s.p+'</span><span class="dur">⏱ '+s.t+'</span></div></div></div>';
 }).join('');
 
 // ---- бегущая строка: дублируем контент для бесшовности ----
