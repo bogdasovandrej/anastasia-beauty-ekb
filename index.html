@@ -208,15 +208,10 @@ a{color:inherit}
 .card:hover{transform:translateY(-8px);box-shadow:var(--sh-md);border-color:transparent}
 .card::after{content:'';position:absolute;inset:0;border-radius:inherit;padding:1.5px;background:var(--grad-brand);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .45s;pointer-events:none;z-index:3}
 .card:hover::after{opacity:1}
-.card .shot{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--surface-2)}
-.card .shot img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease)}
-.card:hover .shot img{transform:scale(1.07)}
-.card .shot::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(28,25,23,0) 45%,rgba(28,25,23,.35));opacity:0;transition:opacity .45s}
-.card:hover .shot::after{opacity:1}
-.card .tile{position:absolute;left:16px;bottom:-22px;width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-sm);z-index:2;transition:transform .45s var(--ease)}
-.card:hover .tile{transform:translateY(-4px) rotate(-6deg)}
-.card .tile img{width:28px;height:28px}
-.card .body{padding:34px 24px 24px;display:flex;flex-direction:column;flex:1}
+.card .tile{width:60px;height:60px;border-radius:18px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;margin-bottom:20px;transition:transform .45s var(--ease),background .45s}
+.card:hover .tile{transform:rotate(-6deg) scale(1.06);background:var(--rose-soft)}
+.card .tile img{width:34px;height:34px}
+.card .body{padding:28px 24px 24px;display:flex;flex-direction:column;flex:1}
 .card h3{font-family:var(--font-d);font-size:16px;font-weight:600;margin-bottom:8px}
 .card .desc{font-size:13.5px;color:var(--ink-2);flex:1}
 .card .meta{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:20px;padding-top:16px;border-top:1px dashed var(--line)}
@@ -508,9 +503,8 @@ var SERVICES=[
 document.getElementById('bento').innerHTML=SERVICES.map(function(s,k){
   return '<div class="card rv" style="--d:'+((k%4)*.08)+'s">'+
     '<a class="go" href="#booking" aria-label="Записаться: '+s.n+'">↗</a>'+
-    '<div class="shot"><img src="images/'+s.img+'.webp" alt="'+s.n+'" loading="lazy" decoding="async">'+
-    '<div class="tile"><img src="images/'+s.ic+'.svg" alt=""></div></div>'+
-    '<div class="body"><h3>'+s.n+'</h3><p class="desc">'+s.d+'</p>'+
+    '<div class="body"><div class="tile"><img src="images/'+s.ic+'.svg" alt="" width="34" height="34"></div>'+
+    '<h3>'+s.n+'</h3><p class="desc">'+s.d+'</p>'+
     '<div class="meta"><span class="price">'+(s.req?'<small>по запросу</small>':s.p)+'</span><span class="dur">⏱ '+s.t+'</span></div></div></div>';
 }).join('');
 

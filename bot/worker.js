@@ -10,7 +10,9 @@
  *   GET  /slots          — свободные окна под услугу на день
  *   GET  /busy           — занятое время дня: только часы, без имён и телефонов
  *   POST /book           — запись на время; без времени — просьба перезвонить
- *   POST /tg             — вебхук Telegram
+ *   POST /tg             — вебхук Telegram, бот мастера
+ *   POST /tgc            — вебхук Telegram, бот для клиентов
+ *   GET  /planer         — планер дня для мастера, по отдельному ключу
  *   POST /max            — вебхук МАКС
  *   GET  /calendar.ics   — подписка на календарь телефона, по отдельному ключу
  *   GET  /diag           — проверка связи и настроек
@@ -28,7 +30,7 @@
  * только мастер в мессенджере.
  *
  * Секреты (задаются в Cloudflare, в коде их нет):
- *   TG_TOKEN, TG_ADMIN_ID, MAX_TOKEN, MAX_ADMIN_ID, ADMIN_KEY
+ *   TG_TOKEN, TG_ADMIN_ID, TG_CLIENT_TOKEN, MAX_TOKEN, MAX_ADMIN_ID, ADMIN_KEY
  */
 
 const SITE = 'https://more-krasok.ru';
@@ -321,9 +323,21 @@ async function createBooking(env, body) {
   }
 
   const res = await env.DB.prepare(
-    'INSERT INTO bookings (day, start_min, end_min, service, name, phone, status, created_at) VALUES (?,?,?,?,?,?,?,?)',
+    'INSERT INTO bookings (day, start_min, end_min, service, name, phone, status, created_at, client_chat, client_kind) ' +
+      'VALUES (?,?,?,?,?,?,?,?,?,?)',
   )
-    .bind(day, start, start + dur, service, name, phone, 'new', new Date().toISOString())
+    .bind(
+      day,
+      start,
+      start + dur,
+      service,
+      name,
+      phone,
+      'new',
+      new Date().toISOString(),
+      body.clientChat ? String(body.clientChat) : null,
+      body.clientKind || null,
+    )
     .run();
 
   const id = res.meta.last_row_id;
@@ -617,11 +631,23 @@ async function bookFromLine(env, st, raw) {
   return {
     ok: true,
     text:
-      '✅ Записала' + NL + NL +
-      '📅 ' + ruDay(st.day) + NL +
-      '🕐 ' + res.start + ' — ' + res.end + NL +
-      '💅 ' + st.service + NL +
-      '👤 ' + name + (phone ? NL + '📞 ' + phone : ''),
+      '✅ Записала' +
+      NL +
+      NL +
+      '📅 ' +
+      ruDay(st.day) +
+      NL +
+      '🕐 ' +
+      res.start +
+      ' — ' +
+      res.end +
+      NL +
+      '💅 ' +
+      st.service +
+      NL +
+      '👤 ' +
+      name +
+      (phone ? NL + '📞 ' + phone : ''),
   };
 }
 
@@ -703,6 +729,313 @@ async function calendarIcs(env) {
   return lines.join('\r\n');
 }
 
+// ---------- бот для клиентов ----------
+
+/* Отдельный бот: мастеру — свой, клиентам — свой. Один бот на двоих был бы
+   опасен: любая ошибка в проверке «свой-чужой» открыла бы посторонним
+   управление графиком и телефоны клиентов.
+
+   Запись целиком кнопками: услуга → день → время → телефон одной кнопкой
+   «поделиться контактом». Печатать не нужно ничего. */
+
+async function cstate(env, chat) {
+  const raw = await getSetting(env, 'c:' + chat);
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+async function setCstate(env, chat, st) {
+  await setSetting(env, 'c:' + chat, JSON.stringify(st));
+}
+
+async function tgc(env, method, payload) {
+  const r = await fetch('https://api.telegram.org/bot' + env.TG_CLIENT_TOKEN + '/' + method, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const j = await r.json();
+  if (!j.ok) console.log('Клиентский бот ' + method + ': ' + j.description);
+  return j;
+}
+
+/* Ближайшие рабочие дни, где под услугу вообще есть свободное время.
+   Показывать день, в который всё занято, — злить человека впустую. */
+async function clientDays(env, service, limit) {
+  const out = [];
+  const probe = new Date(Date.now() + EKB * 60000);
+  for (let i = 0; i < 60 && out.length < (limit || 8); i++) {
+    const day = probe.toISOString().slice(0, 10);
+    if (await isWorkingDay(env, day)) {
+      const f = await freeSlots(env, day, service);
+      if (f.slots && f.slots.length) out.push({ day: day, free: f.slots.length });
+    }
+    probe.setUTCDate(probe.getUTCDate() + 1);
+  }
+  return out;
+}
+
+function clientServiceButtons() {
+  return SERVICE_NAMES.map(function (n, i) {
+    return [{ text: n + ' · ' + DURATION[n] + ' мин', callback_data: 'cs:' + i }];
+  });
+}
+
+async function clientStart(env, chat) {
+  await setCstate(env, chat, {});
+  await tgc(env, 'sendMessage', {
+    chat_id: chat,
+    text:
+      'Студия красоты «Море красок»' +
+      NL +
+      'Екатеринбург, Уралмаш, ул. Донбасская, 4' +
+      NL +
+      NL +
+      'Записаться можно прямо здесь — выберите услугу:',
+    reply_markup: { inline_keyboard: clientServiceButtons() },
+  });
+}
+
+async function handleClientBot(env, update) {
+  const msg = update.message;
+  const cb = update.callback_query;
+  const chat = (msg && msg.chat && msg.chat.id) || (cb && cb.message.chat.id);
+  if (!chat) return;
+
+  if (msg && msg.contact && msg.contact.phone_number) {
+    // человек нажал «поделиться контактом» — это последний шаг
+    const st = await cstate(env, chat);
+    if (!st.start) return;
+    const name = [msg.contact.first_name, msg.contact.last_name].filter(Boolean).join(' ') || 'Клиент';
+    const res = await createBooking(env, {
+      name: name,
+      phone: msg.contact.phone_number,
+      service: st.service,
+      day: st.day,
+      start: st.start,
+      clientChat: chat,
+      clientKind: 'tg',
+    });
+    await setCstate(env, chat, {});
+    await tgc(env, 'sendMessage', {
+      chat_id: chat,
+      text: res.ok
+        ? '✅ Вы записаны!' +
+          NL +
+          NL +
+          '📅 ' +
+          ruDay(st.day) +
+          NL +
+          '🕐 ' +
+          res.start +
+          ' — ' +
+          res.end +
+          NL +
+          '💅 ' +
+          st.service +
+          NL +
+          NL +
+          'Адрес: ул. Донбасская, 4' +
+          NL +
+          'Напомню накануне. Если планы изменятся — позвоните: ' +
+          PHONE
+        : '❌ ' + res.error,
+      reply_markup: { remove_keyboard: true },
+    });
+    if (res.ok) await clientStart(env, chat);
+    return;
+  }
+
+  if (msg && msg.text) {
+    await clientStart(env, chat);
+    return;
+  }
+
+  if (cb) {
+    const data = cb.data || '';
+    const st = await cstate(env, chat);
+
+    if (data.startsWith('cs:')) {
+      st.service = SERVICE_NAMES[parseInt(data.slice(3), 10)];
+      await setCstate(env, chat, st);
+      const days = await clientDays(env, st.service, 8);
+      await tgc(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      await tgc(env, 'editMessageText', {
+        chat_id: chat,
+        message_id: cb.message.message_id,
+        text:
+          '💅 ' +
+          st.service +
+          ' · ' +
+          DURATION[st.service] +
+          ' мин' +
+          NL +
+          NL +
+          (days.length ? 'Выберите день:' : 'Свободных дней пока нет. Позвоните: ' + PHONE),
+        reply_markup: {
+          inline_keyboard: days
+            .map(function (d) {
+              return [{ text: ruDay(d.day) + ' · свободно ' + d.free, callback_data: 'cd:' + d.day }];
+            })
+            .concat([[{ text: '← Другая услуга', callback_data: 'cb:svc' }]]),
+        },
+      });
+      return;
+    }
+
+    if (data === 'cb:svc') {
+      await tgc(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      await tgc(env, 'editMessageText', {
+        chat_id: chat,
+        message_id: cb.message.message_id,
+        text: 'Выберите услугу:',
+        reply_markup: { inline_keyboard: clientServiceButtons() },
+      });
+      return;
+    }
+
+    if (data.startsWith('cd:')) {
+      st.day = data.slice(3);
+      await setCstate(env, chat, st);
+      const f = await freeSlots(env, st.day, st.service);
+      const rows = [];
+      const list = f.slots || [];
+      for (let i = 0; i < list.length; i += 3) {
+        rows.push(
+          list.slice(i, i + 3).map(function (s) {
+            return { text: s.start, callback_data: 'ct:' + s.min };
+          }),
+        );
+      }
+      rows.push([{ text: '← Другой день', callback_data: 'cs:' + SERVICE_NAMES.indexOf(st.service) }]);
+      await tgc(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      await tgc(env, 'editMessageText', {
+        chat_id: chat,
+        message_id: cb.message.message_id,
+        text: '💅 ' + st.service + NL + '📅 ' + ruDay(st.day) + NL + NL + 'Выберите время:',
+        reply_markup: { inline_keyboard: rows },
+      });
+      return;
+    }
+
+    if (data.startsWith('ct:')) {
+      st.start = parseInt(data.slice(3), 10);
+      await setCstate(env, chat, st);
+      await tgc(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      await tgc(env, 'editMessageText', {
+        chat_id: chat,
+        message_id: cb.message.message_id,
+        text:
+          '💅 ' +
+          st.service +
+          NL +
+          '📅 ' +
+          ruDay(st.day) +
+          NL +
+          '🕐 ' +
+          hhmm(st.start) +
+          NL +
+          NL +
+          'Остался последний шаг — телефон, чтобы мастер могла с вами связаться.',
+      });
+      await tgc(env, 'sendMessage', {
+        chat_id: chat,
+        text: 'Нажмите кнопку внизу — номер подставится сам.',
+        reply_markup: {
+          keyboard: [[{ text: '📞 Отправить мой номер', request_contact: true }]],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      });
+      return;
+    }
+  }
+}
+
+// ---------- напоминания ----------
+
+/* Раз в день: клиентам, записанным через бота, — напоминание накануне,
+   мастеру — расписание на сегодня. Неявки чаще всего от забывчивости,
+   и одно сообщение накануне снимает большую их часть. */
+async function sendReminders(env) {
+  const now = nowEkb();
+  const t = new Date(Date.now() + EKB * 60000);
+  t.setUTCDate(t.getUTCDate() + 1);
+  const tomorrow = t.toISOString().slice(0, 10);
+
+  const r = await env.DB.prepare(
+    'SELECT id, day, start_min, end_min, service, name, client_chat, client_kind FROM bookings ' +
+      "WHERE day = ? AND status != 'cancelled' AND reminded = 0 AND client_chat IS NOT NULL",
+  )
+    .bind(tomorrow)
+    .all();
+
+  for (const b of r.results) {
+    const text =
+      'Напоминаем о записи 🌸' +
+      NL +
+      NL +
+      '📅 завтра, ' +
+      ruDay(b.day) +
+      NL +
+      '🕐 ' +
+      hhmm(b.start_min) +
+      ' — ' +
+      hhmm(b.end_min) +
+      NL +
+      '💅 ' +
+      b.service +
+      NL +
+      NL +
+      'Студия «Море красок», ул. Донбасская, 4' +
+      NL +
+      'Если планы изменились, позвоните: ' +
+      PHONE;
+    try {
+      if (b.client_kind === 'tg' && env.TG_CLIENT_TOKEN) {
+        await tgc(env, 'sendMessage', { chat_id: b.client_chat, text: text });
+      }
+      await env.DB.prepare('UPDATE bookings SET reminded = 1 WHERE id = ?').bind(b.id).run();
+    } catch (e) {
+      console.log('Напоминание ' + b.id + ': ' + e.message);
+    }
+  }
+
+  // мастеру — что сегодня
+  const today = await env.DB.prepare(
+    'SELECT start_min, end_min, service, name, phone, note FROM bookings ' +
+      "WHERE day = ? AND status != 'cancelled' ORDER BY start_min",
+  )
+    .bind(now.day)
+    .all();
+  if (today.results.length) {
+    let out = 'Доброе утро! Сегодня, ' + ruDay(now.day) + ':' + NL;
+    for (const b of today.results) {
+      out +=
+        NL +
+        hhmm(b.start_min) +
+        '–' +
+        hhmm(b.end_min) +
+        '  ' +
+        b.service +
+        NL +
+        '   ' +
+        b.name +
+        ', ' +
+        b.phone +
+        (b.note ? NL + '   💬 ' + b.note : '');
+    }
+    if (env.TG_TOKEN && env.TG_ADMIN_ID) {
+      await tg(env, 'sendMessage', { chat_id: env.TG_ADMIN_ID, text: out });
+    }
+    const mc = await getSetting(env, 'max_chat');
+    if (env.MAX_TOKEN && mc) await maxSend(env, mc, out);
+  }
+  return { напомнили: r.results.length, записей_сегодня: today.results.length };
+}
+
 // ---------- планер дня ----------
 
 /* Страница на замену планеру из «Lubava»: лента дня с 9:00 до 19:00,
@@ -721,7 +1054,7 @@ async function planerKey(env) {
 
 async function dayData(env, day) {
   const r = await env.DB.prepare(
-    "SELECT id, start_min, end_min, service, name, phone, note FROM bookings " +
+    'SELECT id, start_min, end_min, service, name, phone, note FROM bookings ' +
       "WHERE day = ? AND status != 'cancelled' ORDER BY start_min",
   )
     .bind(day)
@@ -1009,10 +1342,19 @@ async function handleTelegram(env, update) {
       await tg(env, 'sendMessage', {
         chat_id: chatId,
         text:
-          'Планер дня — расписание с 9:00 до 19:00.' + NL + NL +
-          SELF_URL + '/planer?key=' + k + NL + NL +
-          'Нажмите на свободный час, чтобы записать клиента, или на запись, чтобы позвонить или отменить.' + NL +
-          'Добавьте ссылку на главный экран телефона — будет как приложение.' + NL + NL +
+          'Планер дня — расписание с 9:00 до 19:00.' +
+          NL +
+          NL +
+          SELF_URL +
+          '/planer?key=' +
+          k +
+          NL +
+          NL +
+          'Нажмите на свободный час, чтобы записать клиента, или на запись, чтобы позвонить или отменить.' +
+          NL +
+          'Добавьте ссылку на главный экран телефона — будет как приложение.' +
+          NL +
+          NL +
           'Ссылку никому не передавайте: по ней видны телефоны клиентов.',
         reply_markup: MENU_TG,
       });
@@ -1341,7 +1683,16 @@ async function handleMax(env, update) {
       await setState(env, st);
       const sb = await slotButtons(env, st.day, st.service);
       await step(
-        '📅 ' + ruDay(st.day) + NL + '💅 ' + st.service + ' · ' + DURATION[st.service] + ' мин' + NL + NL +
+        '📅 ' +
+          ruDay(st.day) +
+          NL +
+          '💅 ' +
+          st.service +
+          ' · ' +
+          DURATION[st.service] +
+          ' мин' +
+          NL +
+          NL +
           (sb.count ? 'Во сколько?' : 'Свободного времени в этот день не осталось.'),
         sb.rows.length ? sb.rows : [[{ text: '← Другой день', data: 'bm:' + st.day.slice(0, 7) }]],
       );
@@ -1354,8 +1705,19 @@ async function handleMax(env, update) {
       st.step = 'name';
       await setState(env, st);
       await step(
-        '📅 ' + ruDay(st.day) + NL + '🕐 ' + hhmm(st.start) + NL + '💅 ' + st.service + NL + NL +
-          'Напишите одним сообщением имя и телефон.' + NL + 'Например: Иванова 89001234567',
+        '📅 ' +
+          ruDay(st.day) +
+          NL +
+          '🕐 ' +
+          hhmm(st.start) +
+          NL +
+          '💅 ' +
+          st.service +
+          NL +
+          NL +
+          'Напишите одним сообщением имя и телефон.' +
+          NL +
+          'Например: Иванова 89001234567',
         [],
       );
       return;
@@ -1371,9 +1733,16 @@ async function handleMax(env, update) {
       } else if (what === 'planer') {
         const k = await planerKey(env);
         out =
-          'Планер дня — расписание с 9:00 до 19:00.' + NL + NL +
-          SELF_URL + '/planer?key=' + k + NL + NL +
-          'Нажмите на свободный час, чтобы записать клиента.' + NL +
+          'Планер дня — расписание с 9:00 до 19:00.' +
+          NL +
+          NL +
+          SELF_URL +
+          '/planer?key=' +
+          k +
+          NL +
+          NL +
+          'Нажмите на свободный час, чтобы записать клиента.' +
+          NL +
           'Ссылку никому не передавайте: по ней видны телефоны клиентов.';
       } else if (what === 'cal') {
         const k = await calendarKey(env);
@@ -1555,6 +1924,15 @@ async function handleSetup(env, url) {
     );
     out.telegram = await r.json();
   }
+  if (env.TG_CLIENT_TOKEN) {
+    const r = await fetch(
+      'https://api.telegram.org/bot' +
+        env.TG_CLIENT_TOKEN +
+        '/setWebhook?url=' +
+        encodeURIComponent(base + '/tgc'),
+    );
+    out.telegram_клиентский = await r.json();
+  }
   if (env.MAX_TOKEN) {
     out.max = await maxApi(env, '/subscriptions', {
       url: base + '/max',
@@ -1578,6 +1956,12 @@ export default {
       env.DB.prepare('DELETE FROM notes WHERE created_at < ?').bind(cutNotes),
     ]);
     console.log('Очистка: записей ' + r[0].meta.changes + ', заметок ' + r[1].meta.changes);
+    try {
+      const rem = await sendReminders(env);
+      console.log('Напоминания: ' + JSON.stringify(rem));
+    } catch (e) {
+      console.log('Напоминания упали: ' + e.message);
+    }
   },
 
   async fetch(request, env) {
@@ -1707,6 +2091,13 @@ export default {
           return {};
         });
         await handleTelegram(env, body);
+        return new Response('ok');
+      }
+      if (path === '/tgc' && request.method === 'POST') {
+        const body = await request.json().catch(function () {
+          return {};
+        });
+        if (env.TG_CLIENT_TOKEN) await handleClientBot(env, body);
         return new Response('ok');
       }
       if (path === '/max' && request.method === 'POST') {
