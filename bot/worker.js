@@ -512,7 +512,7 @@ const MENU_TG = {
   keyboard: [
     [{ text: '✍️ Записать клиента' }, { text: '📋 Мои записи' }],
     [{ text: '📅 График' }, { text: '📓 Блокнот' }],
-    [{ text: '📱 Календарь на телефон' }],
+    [{ text: '📖 Планер дня' }, { text: '📱 Календарь на телефон' }],
   ],
   resize_keyboard: true,
   is_persistent: true,
@@ -526,6 +526,7 @@ const MENU_MAX = [
     { text: '📅 График', data: 'menu:grafik' },
     { text: '📓 Блокнот', data: 'menu:zametki' },
   ],
+  [{ text: '📖 Планер дня', data: 'menu:planer' }],
   [{ text: '📱 Календарь на телефон', data: 'menu:cal' }],
 ];
 
@@ -702,6 +703,224 @@ async function calendarIcs(env) {
   return lines.join('\r\n');
 }
 
+// ---------- планер дня ----------
+
+/* Страница на замену планеру из «Lubava»: лента дня с 9:00 до 19:00,
+   занятые часы блоками, свободные — нажимаются и открывают быстрое добавление.
+   Отдаёт её сам сервер по ссылке с ключом: на статическом сайте пароль
+   спрятать негде, а здесь проверка происходит до отдачи страницы. */
+
+async function planerKey(env) {
+  let k = await getSetting(env, 'planer_key');
+  if (!k) {
+    k = crypto.randomUUID().replace(/-/g, '');
+    await setSetting(env, 'planer_key', k);
+  }
+  return k;
+}
+
+async function dayData(env, day) {
+  const r = await env.DB.prepare(
+    "SELECT id, start_min, end_min, service, name, phone, note FROM bookings " +
+      "WHERE day = ? AND status != 'cancelled' ORDER BY start_min",
+  )
+    .bind(day)
+    .all();
+  return {
+    day: day,
+    подпись: ruDay(day),
+    рабочий: await isWorkingDay(env, day),
+    услуги: SERVICE_NAMES.map(function (n) {
+      return { имя: n, мин: DURATION[n] };
+    }),
+    записи: r.results.map(function (b) {
+      return {
+        id: b.id,
+        начало: b.start_min,
+        конец: b.end_min,
+        время: hhmm(b.start_min) + '–' + hhmm(b.end_min),
+        услуга: b.service,
+        имя: b.name,
+        телефон: b.phone,
+        пометка: b.note || '',
+      };
+    }),
+  };
+}
+
+function planerHtml() {
+  return `<!DOCTYPE html><html lang="ru"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow"><title>Планер — Море красок</title>
+<style>
+:root{--bg:#faf7f4;--card:#fff;--ink:#1c1917;--ink2:#57534e;--ink3:#a8a29e;--line:#ebe4dc;
+--rose:#d4a5a5;--rose2:#b27d7d;--soft:#f7ebeb;--ok:#1d7a3f;--okbg:#e7f6ec;--off:#c07816;--offbg:#fdf3e3}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font:15px/1.5 -apple-system,system-ui,Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:40px}
+.top{position:sticky;top:0;z-index:5;background:rgba(250,247,244,.94);backdrop-filter:blur(12px);
+border-bottom:1px solid var(--line);padding:12px 14px}
+.nav{display:flex;align-items:center;gap:10px}
+.nav button{flex:none;width:44px;height:44px;border:1px solid var(--line);background:var(--card);
+border-radius:14px;font-size:19px;color:var(--ink)}
+.nav .t{flex:1;text-align:center}
+.nav .t b{display:block;font-size:16px}
+.nav .t span{font-size:12px;color:var(--ink3)}
+.badge{display:inline-block;margin-top:8px;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700}
+.badge.w{background:var(--okbg);color:var(--ok)}
+.badge.o{background:var(--offbg);color:var(--off)}
+.wrap{padding:14px}
+.row{display:flex;gap:10px;margin-bottom:6px}
+.hh{flex:none;width:46px;font-size:12px;color:var(--ink3);font-weight:700;padding-top:12px}
+.cell{flex:1;min-height:40px;border:1px dashed var(--line);border-radius:12px;background:var(--card);
+display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:13px}
+.cell.free:active{background:var(--soft);border-color:var(--rose)}
+.bk{flex:1;border-radius:14px;padding:12px 14px;background:linear-gradient(135deg,#d4a5a5,#b27d7d);color:#fff;
+box-shadow:0 6px 16px rgba(212,165,165,.35)}
+.bk b{display:block;font-size:15px}
+.bk .s{font-size:13px;opacity:.92}
+.bk .p{font-size:13px;opacity:.92;margin-top:2px}
+.bk .n{font-size:12.5px;opacity:.92;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.3)}
+.bk a{color:#fff}
+.empty{text-align:center;color:var(--ink2);padding:28px 10px}
+dialog{border:none;border-radius:20px;padding:0;width:min(420px,92vw);background:var(--card)}
+dialog::backdrop{background:rgba(28,25,23,.45)}
+.dlg{padding:20px}
+.dlg h3{font-size:17px;margin-bottom:14px}
+.dlg label{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+color:var(--ink3);margin:12px 0 5px}
+.dlg input,.dlg select{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:14px;
+font:15px inherit;background:var(--bg);color:var(--ink)}
+.btns{display:flex;gap:8px;margin-top:18px}
+.btns button{flex:1;padding:14px;border:none;border-radius:14px;font:700 15px inherit;color:#fff;
+background:linear-gradient(135deg,#d4a5a5,#b27d7d)}
+.btns button.gray{background:var(--bg);color:var(--ink2);border:1px solid var(--line)}
+.btns button.red{background:#c0392b}
+.msg{padding:10px 14px;border-radius:12px;font-size:13.5px;margin-top:12px;display:none}
+.msg.err{display:block;background:#fdeceb;color:#c0392b}
+</style></head><body>
+<div class="top">
+  <div class="nav">
+    <button id="prev" aria-label="Назад">←</button>
+    <div class="t"><b id="dt">—</b><span id="cnt"></span></div>
+    <button id="next" aria-label="Вперёд">→</button>
+  </div>
+  <div style="text-align:center"><span class="badge" id="wd"></span></div>
+</div>
+<div class="wrap" id="grid"></div>
+
+<dialog id="add"><form class="dlg" method="dialog" id="addForm">
+  <h3 id="addTitle">Новая запись</h3>
+  <label>Услуга</label><select id="svc"></select>
+  <label>Имя и фамилия</label><input id="nm" placeholder="Иванова Мария" maxlength="80">
+  <label>Телефон</label><input id="ph" type="tel" placeholder="8 900 123-45-67" maxlength="30">
+  <div class="msg" id="addMsg"></div>
+  <div class="btns"><button type="button" class="gray" id="addCancel">Отмена</button>
+  <button type="button" id="addOk">Записать</button></div>
+</form></dialog>
+
+<dialog id="info"><div class="dlg">
+  <h3 id="infoTitle">Запись</h3>
+  <div id="infoBody"></div>
+  <div class="btns"><button type="button" class="gray" id="infoClose">Закрыть</button>
+  <button type="button" class="red" id="infoDel">Отменить запись</button></div>
+</div></dialog>
+
+<script>
+var KEY=new URLSearchParams(location.search).get('key');
+var day=new URLSearchParams(location.search).get('day')||new Date(Date.now()+5*3600000).toISOString().slice(0,10);
+var data=null,pickStart=null,pickId=null;
+var FROM=540,TO=1140,STEP=30;
+function hhmm(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+// 1 запись, 2 записи, 5 записей — иначе получается «1 записи»
+function plural(n){
+  if(!n)return 'записей нет';
+  var d=n%10,dd=n%100;
+  if(d===1&&dd!==11)return n+' запись';
+  if(d>=2&&d<=4&&(dd<12||dd>14))return n+' записи';
+  return n+' записей';
+}
+function shift(n){var p=day.split('-');var d=new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));d.setUTCDate(d.getUTCDate()+n);
+  day=d.toISOString().slice(0,10);load()}
+function api(path,opts){return fetch('/planer/'+path+'?key='+encodeURIComponent(KEY)+'&day='+day,opts).then(function(r){return r.json()})}
+
+function load(){
+  api('data').then(function(d){
+    data=d;
+    document.getElementById('dt').textContent=d.подпись;
+    document.getElementById('cnt').textContent=plural(d.записи.length);
+    var wd=document.getElementById('wd');
+    wd.textContent=d.рабочий?'рабочий день':'выходной';
+    wd.className='badge '+(d.рабочий?'w':'o');
+    var svc=document.getElementById('svc');
+    svc.innerHTML=d.услуги.map(function(s){return '<option value="'+s.имя+'">'+s.имя+' · '+s.мин+' мин</option>'}).join('');
+    draw();
+  });
+}
+
+function draw(){
+  var g=document.getElementById('grid');g.innerHTML='';
+  if(!data.рабочий&&!data.записи.length){g.innerHTML='<p class="empty">В этот день вы не работаете.<br>Записей нет.</p>';return}
+  var m=FROM;
+  while(m<TO){
+    var bk=data.записи.find(function(b){return b.начало===m});
+    var busy=data.записи.find(function(b){return m>=b.начало&&m<b.конец});
+    var row=document.createElement('div');row.className='row';
+    row.innerHTML='<div class="hh">'+hhmm(m)+'</div>';
+    if(bk){
+      var el=document.createElement('div');el.className='bk';el.dataset.id=bk.id;
+      el.innerHTML='<b>'+esc(bk.имя)+'</b><span class="s">'+esc(bk.услуга)+' · '+bk.время+'</span>'+
+        '<div class="p">'+esc(bk.телефон)+'</div>'+(bk.пометка?'<div class="n">'+esc(bk.пометка)+'</div>':'');
+      row.appendChild(el);
+      m=bk.конец;
+    }else if(busy){
+      m+=STEP;continue;
+    }else{
+      var c=document.createElement('div');c.className='cell free';c.dataset.min=m;c.textContent='свободно';
+      row.appendChild(c);m+=STEP;
+    }
+    g.appendChild(row);
+  }
+}
+function esc(s){return String(s||'').replace(/[<>&]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c]})}
+
+document.getElementById('prev').onclick=function(){shift(-1)};
+document.getElementById('next').onclick=function(){shift(1)};
+
+document.getElementById('grid').addEventListener('click',function(e){
+  var free=e.target.closest('.cell.free');
+  if(free){pickStart=+free.dataset.min;
+    document.getElementById('addTitle').textContent='Запись на '+hhmm(pickStart);
+    document.getElementById('addMsg').className='msg';
+    document.getElementById('add').showModal();return}
+  var bk=e.target.closest('.bk');
+  if(bk){var b=data.записи.find(function(x){return x.id==bk.dataset.id});pickId=b.id;
+    document.getElementById('infoTitle').textContent=b.имя;
+    document.getElementById('infoBody').innerHTML='<p>'+esc(b.услуга)+'<br>'+b.время+'</p>'+
+      '<p style="margin-top:8px"><a href="tel:'+esc(b.телефон)+'">'+esc(b.телефон)+'</a></p>'+
+      (b.пометка?'<p style="margin-top:8px;color:#57534e">'+esc(b.пометка)+'</p>':'');
+    document.getElementById('info').showModal()}
+});
+document.getElementById('addCancel').onclick=function(){document.getElementById('add').close()};
+document.getElementById('infoClose').onclick=function(){document.getElementById('info').close()};
+
+document.getElementById('addOk').onclick=function(){
+  var body={start:pickStart,service:document.getElementById('svc').value,
+    name:document.getElementById('nm').value.trim(),phone:document.getElementById('ph').value.trim()};
+  api('add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){
+      if(r.ok){document.getElementById('add').close();
+        document.getElementById('nm').value='';document.getElementById('ph').value='';load()}
+      else{var m=document.getElementById('addMsg');m.className='msg err';m.textContent=r.error||'Не получилось'}
+    });
+};
+document.getElementById('infoDel').onclick=function(){
+  api('cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:pickId})})
+    .then(function(){document.getElementById('info').close();load()});
+};
+load();
+</script></body></html>`;
+}
+
 // ---------- Telegram ----------
 
 async function tg(env, method, payload) {
@@ -783,6 +1002,20 @@ async function handleTelegram(env, update) {
     }
     if (raw === '📓 Блокнот') {
       await tg(env, 'sendMessage', { chat_id: chatId, text: await notesText(env), reply_markup: MENU_TG });
+      return;
+    }
+    if (raw === '📖 Планер дня') {
+      const k = await planerKey(env);
+      await tg(env, 'sendMessage', {
+        chat_id: chatId,
+        text:
+          'Планер дня — расписание с 9:00 до 19:00.' + NL + NL +
+          SELF_URL + '/planer?key=' + k + NL + NL +
+          'Нажмите на свободный час, чтобы записать клиента, или на запись, чтобы позвонить или отменить.' + NL +
+          'Добавьте ссылку на главный экран телефона — будет как приложение.' + NL + NL +
+          'Ссылку никому не передавайте: по ней видны телефоны клиентов.',
+        reply_markup: MENU_TG,
+      });
       return;
     }
     if (raw === '📱 Календарь на телефон') {
@@ -1135,6 +1368,13 @@ async function handleMax(env, update) {
         out = await upcomingText(env);
       } else if (what === 'zametki') {
         out = await notesText(env);
+      } else if (what === 'planer') {
+        const k = await planerKey(env);
+        out =
+          'Планер дня — расписание с 9:00 до 19:00.' + NL + NL +
+          SELF_URL + '/planer?key=' + k + NL + NL +
+          'Нажмите на свободный час, чтобы записать клиента.' + NL +
+          'Ссылку никому не передавайте: по ней видны телефоны клиентов.';
       } else if (what === 'cal') {
         const k = await calendarKey(env);
         out =
@@ -1380,6 +1620,48 @@ export default {
             'Content-Disposition': 'inline; filename="more-krasok.ics"',
           },
         });
+      }
+
+      // ---- планер дня, закрыт собственным ключом ----
+      if (path === '/planer' || path.startsWith('/planer/')) {
+        const k = await getSetting(env, 'planer_key');
+        if (!k || url.searchParams.get('key') !== k) {
+          return new Response('Нет доступа', { status: 403 });
+        }
+        if (path === '/planer') {
+          return new Response(planerHtml(), {
+            headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+          });
+        }
+        const day = url.searchParams.get('day') || nowEkb().day;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json({ error: 'Нужен день' }, 400);
+
+        if (path === '/planer/data') return json(await dayData(env, day));
+
+        if (path === '/planer/add' && request.method === 'POST') {
+          const b = await request.json().catch(function () {
+            return {};
+          });
+          // мастер записывает вручную — уведомлять её же о своей записи незачем
+          const res = await createBooking(env, {
+            name: b.name || 'Без имени',
+            phone: b.phone || 'не указан',
+            service: b.service,
+            day: day,
+            start: b.start,
+            silent: true,
+          });
+          return json(res, res.ok ? 200 : 400);
+        }
+
+        if (path === '/planer/cancel' && request.method === 'POST') {
+          const b = await request.json().catch(function () {
+            return {};
+          });
+          await cancelBooking(env, parseInt(b.id, 10));
+          return json({ ok: true });
+        }
+        return new Response('Не найдено', { status: 404 });
       }
 
       if (path === '/diag') return json(await handleDiag(env));
