@@ -1870,6 +1870,18 @@ async function handleDiag(env) {
   }
   const sched = await loadSchedule(env);
 
+  // адрес клиентского бота — нужен, чтобы поставить ссылку на сайт
+  let clientBot = null;
+  if (env.TG_CLIENT_TOKEN) {
+    try {
+      const r = await fetch('https://api.telegram.org/bot' + env.TG_CLIENT_TOKEN + '/getMe');
+      const j = await r.json();
+      if (j.ok) clientBot = '@' + j.result.username;
+    } catch (e) {
+      clientBot = 'ошибка: ' + e.message;
+    }
+  }
+
   // с кем бот в МАКСе уже переписывался — по этому видно, заходила ли мастер
   let maxChats = 'не проверялось';
   try {
@@ -1889,6 +1901,7 @@ async function handleDiag(env) {
   }
 
   return {
+    клиентский_бот: clientBot,
     диалоги_в_максе: maxChats,
     секреты: {
       TG_TOKEN: !!env.TG_TOKEN,
@@ -1905,6 +1918,7 @@ async function handleDiag(env) {
     },
     связь: await Promise.all([
       probe('Telegram getMe', 'https://api.telegram.org/bot' + env.TG_TOKEN + '/getMe'),
+      probe('Клиентский бот getMe', 'https://api.telegram.org/bot' + (env.TG_CLIENT_TOKEN || 'нет') + '/getMe'),
       probe('МАКС me', MAX_API + '/me', { headers: { Authorization: env.MAX_TOKEN || '' } }),
     ]),
   };

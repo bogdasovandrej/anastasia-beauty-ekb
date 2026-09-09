@@ -420,6 +420,7 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
         <div class="info-row"><span class="ico">📍</span><div><p class="lbl">Адрес</p><p class="val">Екатеринбург, ул. Донбасская, 4</p></div></div>
         <a href="tel:+79502074302" class="btn btn-brand btn-full"><span>📞 +7 950 207-43-02</span></a>
         <a href="https://t.me/Nastasiya0619" target="_blank" rel="noopener" class="btn btn-tg btn-full">✈️ Написать в Telegram</a>
+        <a href="https://t.me/more_krasok_zapis_bot" target="_blank" rel="noopener" class="btn btn-tg btn-full">🤖 Записаться в Telegram за 3 нажатия</a>
         <a href="https://wa.me/79502074302" target="_blank" rel="noopener" class="btn btn-wa btn-full">💬 Написать в WhatsApp</a>
         <p class="side-note">Отвечаю в часы работы студии</p>
 
@@ -739,9 +740,14 @@ bform.addEventListener('submit',function(e){
     if(res&&res.ok){
       bform.classList.add('sent');
       bnote.className='bform-note ok';
+      /* Напоминание умеем слать только тем, кто записался через бота:
+         у записи с сайта нет чата, куда писать. Поэтому предлагаем бота
+         прямо в подтверждении, пока человек доволен и внимателен. */
       bnote.innerHTML='✅ Вы записаны<br>'+ruDate(pickedDay)+
         (res.start?', '+res.start+'—'+res.end:'')+'<br>'+svcSel.value+
-        '<br><br>Анастасия свяжется с вами, чтобы подтвердить.';
+        '<br><br>Анастасия свяжется с вами, чтобы подтвердить.'+
+        '<br><br><a href="https://t.me/more_krasok_zapis_bot" target="_blank" rel="noopener" '+
+        'style="color:var(--rose-deep);font-weight:700">Напомнить о записи в Telegram →</a>';
       if(window.ym)ym(108994204,'reachGoal','booking');
       return;
     }
