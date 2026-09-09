@@ -616,7 +616,11 @@ render();
    Расписание выше зашито в страницу и работает само по себе — это запасной
    вариант. Если сервер ответит, свежие данные заменят его и календарь
    перерисуется. Если сервер недоступен, посетитель этого не заметит. */
-var API='https://mk-bot.more-krasok-bot.workers.dev';
+/* Российский адрес, а не воркер напрямую: домен *.workers.dev в России
+   заблокирован, и браузер клиента до него не достучится — сайт открывался,
+   а время записи не загружалось. Здесь запрос принимает Яндекс и передаёт
+   дальше на Cloudflare, где логика и база. */
+var API='https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net';
 var SCHEDULE_URL=API+'/schedule.json';
 fetch(SCHEDULE_URL,{cache:'no-cache'}).then(function(r){
   return r.ok?r.json():null;

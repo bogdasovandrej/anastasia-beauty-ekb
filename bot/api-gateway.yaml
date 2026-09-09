@@ -1,0 +1,42 @@
+openapi: 3.0.0
+info:
+  title: more-krasok-api
+  version: 2.0.0
+
+# Российский адрес для сайта. Всё, что сюда приходит, функция передаёт
+# на Cloudflare, где логика и база. Нужен потому, что *.workers.dev
+# заблокирован в России и браузер клиента до воркера не достучится.
+
+paths:
+  /schedule.json:
+    get:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4euiesg4505jf5lvle8
+        service_account_id: ajer25e55plsiv6j7ovd
+
+  /slots:
+    get:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4euiesg4505jf5lvle8
+        service_account_id: ajer25e55plsiv6j7ovd
+
+  /busy:
+    get:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4euiesg4505jf5lvle8
+        service_account_id: ajer25e55plsiv6j7ovd
+
+  /book:
+    post:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4euiesg4505jf5lvle8
+        service_account_id: ajer25e55plsiv6j7ovd
+    options:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4euiesg4505jf5lvle8
+        service_account_id: ajer25e55plsiv6j7ovd
