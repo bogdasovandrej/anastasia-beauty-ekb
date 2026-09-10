@@ -342,6 +342,8 @@ def build():
     urls = ['  <url>\n    <loc>%s/</loc>\n    <lastmod>%s</lastmod>\n    <priority>1.0</priority>\n  </url>' % (SITE, today)]
     for p in PAGES:
         urls.append('  <url>\n    <loc>%s/%s.html</loc>\n    <lastmod>%s</lastmod>\n    <priority>0.8</priority>\n  </url>' % (SITE, p['slug'], today))
+    # политика обработки данных — тоже в карте: на неё ведёт ссылка из формы
+    urls.append('  <url>\n    <loc>%s/privacy.html</loc>\n    <lastmod>%s</lastmod>\n    <priority>0.3</priority>\n  </url>' % (SITE, today))
     io.open('sitemap.xml', 'w', encoding='utf-8').write(
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + '\n'.join(urls) + '\n</urlset>\n')

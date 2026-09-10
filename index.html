@@ -317,6 +317,10 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
 .cal-cell.work{cursor:pointer}
 .cal-cell.work.past{cursor:default}
 .cal-cell.sel{outline:3px solid var(--rose-deep);outline-offset:-3px}
+.agree{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;line-height:1.5;color:var(--ink-2);margin-top:4px;cursor:pointer}
+.agree input{flex:none;width:18px;height:18px;margin-top:1px;accent-color:var(--rose-deep);cursor:pointer}
+.agree a{color:var(--rose-deep);font-weight:600}
+.agree.bad span{color:#c0392b}
 .bform-note{font-size:11.5px;line-height:1.5;color:var(--ink-3);text-align:center}
 .bform-note.ok{color:var(--ok-fg);font-weight:700;font-size:14px}
 .bform-note.err{color:#c0392b;font-weight:700;font-size:13.5px}
@@ -531,7 +535,10 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
         </p>
         <p class="side-note">Отвечаю в рабочие часы</p>
 
-        <form class="bform" id="bform" novalidate>
+        <!-- ym-disable-keys и ym-hide-content: Вебвизор Метрики записывает
+               действия на странице. Без этих меток в запись попадали бы имя
+               и телефон, которые человек печатает. -->
+        <form class="bform ym-hide-content" id="bform" novalidate>
           <p class="bform-head">Выберите время</p>
 
           <!-- Шаг «Время» виден всегда, а не появляется после выбора дня:
@@ -549,13 +556,20 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
           </div>
 
           <label class="fld-lbl">4. Контакты</label>
-          <input class="fld" name="name" placeholder="Как вас зовут" maxlength="80" autocomplete="name" required>
-          <input class="fld" name="phone" type="tel" placeholder="Телефон" maxlength="30" autocomplete="tel" required>
+          <input class="fld ym-disable-keys ym-hide-content" name="name" placeholder="Как вас зовут" maxlength="80" autocomplete="name" required>
+          <input class="fld ym-disable-keys ym-hide-content" name="phone" type="tel" placeholder="Телефон" maxlength="30" autocomplete="tel" required>
           <!-- ловушка для спам-ботов: человек её не видит и не заполняет -->
           <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
 
+          <!-- Галочка, а не строчка мелким шрифтом: согласие должно быть
+               осознанным действием, а не следствием нажатия кнопки. -->
+          <label class="agree"><input type="checkbox" id="bformAgree">
+            <span>Согласен на обработку имени и телефона — они нужны, чтобы подтвердить запись.
+            <a href="privacy.html" target="_blank" rel="noopener">Как мы с ними обращаемся</a></span>
+          </label>
+
           <button class="btn btn-brand btn-full" type="submit"><span>Записаться</span></button>
-          <p class="bform-note" id="bformNote">Нажимая кнопку, вы соглашаетесь на обработку имени и телефона — они нужны, чтобы подтвердить запись. Мастеру придёт уведомление, вам перезвонят.</p>
+          <p class="bform-note" id="bformNote">Мастеру придёт уведомление, вам перезвонят. Данные удаляются через полгода.</p>
         </form>
       </div>
     </div>
@@ -615,8 +629,11 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
   <div class="wrap">
     <p class="word rv">Море красок</p>
     <div class="footer-grid">
-      <p>Мастер красоты Анастасия<br>© 2026 · г. Екатеринбург, ул. Донбасская, 4</p>
-      <div class="links"><a href="#services">Услуги</a><a href="#booking">Запись</a><a href="#contacts">Контакты</a><a href="tel:+79502074302">+7 950 207-43-02</a></div>
+      <!-- Кто оказывает услуги — по закону о защите прав потребителей
+           это должно быть на сайте, а не только в разговоре. -->
+      <p>Богдашова Анастасия Викторовна, самозанятая<br>
+      © 2026 · г. Екатеринбург, ул. Донбасская, 4</p>
+      <div class="links"><a href="#services">Услуги</a><a href="#booking">Запись</a><a href="#contacts">Контакты</a><a href="privacy.html">Обработка данных</a><a href="tel:+79502074302">+7 950 207-43-02</a></div>
     </div>
   </div>
 </footer>
@@ -863,11 +880,15 @@ bform.addEventListener('submit',function(e){
   f.name.classList.toggle('bad',!name);
   f.phone.classList.toggle('bad',digits<10);
 
+  var agree=document.getElementById('bformAgree');
+  agree.parentNode.classList.remove('bad');
+
   var problem=null;
   if(!pickedDay)problem='Выберите день в календаре';
   else if(pickedStart===null)problem='Выберите время';
   else if(!name)problem='Напишите, как к вам обращаться';
   else if(digits<10)problem='Проверьте номер телефона';
+  else if(!agree.checked){problem='Отметьте согласие на обработку данных';agree.parentNode.classList.add('bad')}
   if(problem){bnote.className='bform-note err';bnote.textContent=problem;return;}
 
   btn.disabled=true;btn.querySelector('span').textContent='Записываю…';
