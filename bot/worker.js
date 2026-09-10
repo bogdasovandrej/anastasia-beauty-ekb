@@ -586,12 +586,14 @@ const MENU_TG = {
   resize_keyboard: true,
   is_persistent: true,
 };
+/* В МАКСе оставлено только то, что там надёжно работает.
+   Его сервер отвечает на нажатие 1,2–1,5 секунды против 150 мс у Telegram,
+   и многошаговые действия — выбор дня, услуги, времени — не доживали
+   до конца: мастер видела кнопки, которые «не нажимаются». Поэтому запись
+   клиента и правка графика живут в Telegram и планере, а здесь остаются
+   просмотр записей и ссылки — то, что укладывается в одно нажатие. */
 const MENU_MAX = [
-  [
-    { text: '✍️ Записать клиента', data: 'menu:zapis' },
-    { text: '📋 Мои записи', data: 'menu:zapisi' },
-  ],
-  [{ text: '📅 График', data: 'menu:grafik' }],
+  [{ text: '📋 Мои записи', data: 'menu:zapisi' }],
   [{ text: '📖 Планер дня', data: 'menu:planer' }],
   [{ text: '📱 Календарь на телефон', data: 'menu:cal' }],
 ];
@@ -929,7 +931,9 @@ async function handleClientBot(env, update) {
         reply_markup: {
           inline_keyboard: days
             .map(function (d) {
-              return [{ text: ruDay(d.day) + ' · свободно ' + d.free, callback_data: 'cd:' + d.day }];
+              // без числа свободных окон: клиенту оно ничего не говорит,
+              // а «свободно 22» выглядит как техническая надпись
+              return [{ text: ruDay(d.day), callback_data: 'cd:' + d.day }];
             })
             .concat([[{ text: '← Другая услуга', callback_data: 'cb:svc' }]]),
         },
@@ -1656,11 +1660,26 @@ async function handleMax(env, update) {
     const sched = await loadSchedule(env);
     const now = new Date();
     if (text === '/start') {
-      await maxSend(env, chatId, 'Здравствуйте, Анастасия! Всё делается кнопками ниже:', MENU_MAX);
+      await maxSend(env, chatId, 'Здравствуйте, Анастасия!' + NL + NL +
+        'Здесь приходят новые записи и можно посмотреть расписание.' + NL +
+        'Записать клиента и отметить выходные удобнее в Telegram или в планере — ' +
+        'МАКС для этого слишком медленный.', MENU_MAX);
     } else if (text === '/grafik' || text === 'график') {
-      const y = now.getUTCFullYear(),
-        mo = now.getUTCMonth();
-      await maxSend(env, chatId, monthText(sched, y, mo), calendarButtons(sched, y, mo));
+      // календарь на месяц в МАКСе не доживал до отрисовки — отправляем туда,
+      // где он работает быстро
+      await maxSend(
+        env,
+        chatId,
+        'Отметить выходные удобнее в Telegram: там календарь открывается сразу.' +
+          NL +
+          NL +
+          'Посмотреть расписание и записать клиента — в планере:' +
+          NL +
+          SITE +
+          '/planer.html?key=' +
+          (await planerKey(env)),
+        MENU_MAX,
+      );
     } else if (text === '/zapisi' || text === 'записи') {
       await maxSend(env, chatId, await upcomingText(env));
     } else if (text === '/zametki' || text === 'заметки') {
