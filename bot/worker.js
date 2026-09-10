@@ -77,8 +77,12 @@ KV кэширует чтение примерно на минуту: бот чи
 сразу видит запись, поэтому такой потери быть не может. */
 
 async function loadSchedule(env) {
-  const open = await env.DB.prepare('SELECT ym FROM open_months').all();
-  const days = await env.DB.prepare('SELECT ym, day FROM off_days ORDER BY day').all();
+  /* Оба запроса одной посылкой: раздельно это два обращения к базе и вдвое
+     больше задержки. В МАКСе из-за неё кнопки не успевали ответить вовремя. */
+  const [open, days] = await env.DB.batch([
+    env.DB.prepare('SELECT ym FROM open_months'),
+    env.DB.prepare('SELECT ym, day FROM off_days ORDER BY day'),
+  ]);
   const off = {};
   for (const r of open.results) off[r.ym] = [];
   for (const r of days.results) {
@@ -386,6 +390,53 @@ function bookingText(b) {
 
 const WDAYS = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
 
+/* Файл-приглашение прямо в чат.
+   Подписка на календарь по ссылке — теория: Google обновляет такие календари
+   по своему расписанию, иногда сутками, и на телефоне ничего не появляется.
+   Файл .ics работает мгновенно и в любом календаре, включая встроенный
+   самсунговский: мастер нажимает на него и подтверждает добавление. */
+function icsForBooking(b) {
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//more-krasok//RU',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    'UID:booking-' + b.id + '@more-krasok.ru',
+    'DTSTAMP:' + stamp,
+    'DTSTART:' + icsTime(b.day, b.start),
+    'DTEND:' + icsTime(b.day, b.end),
+    'SUMMARY:' + icsEscape(b.service + ' — ' + b.name),
+    'DESCRIPTION:' + icsEscape(b.phone),
+    'LOCATION:' + icsEscape('ул. Донбасская, 4, Екатеринбург'),
+    'BEGIN:VALARM',
+    'TRIGGER:-PT1H',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:' + icsEscape('Через час: ' + b.name),
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+}
+
+async function sendIcsToMaster(env, b) {
+  if (!env.TG_TOKEN || !env.TG_ADMIN_ID) return;
+  const form = new FormData();
+  form.append('chat_id', String(env.TG_ADMIN_ID));
+  form.append('caption', '📅 Нажмите, чтобы добавить в календарь телефона');
+  form.append(
+    'document',
+    new Blob([icsForBooking(b)], { type: 'text/calendar' }),
+    'zapis-' + b.day + '-' + hhmm(b.start).replace(':', '') + '.ics',
+  );
+  const r = await fetch('https://api.telegram.org/bot' + env.TG_TOKEN + '/sendDocument', {
+    method: 'POST',
+    body: form,
+  });
+  if (!r.ok) console.log('ics: ' + (await r.text()).slice(0, 200));
+}
+
 async function notifyMaster(env, b) {
   const text = bookingText(b);
   const jobs = [];
@@ -422,6 +473,10 @@ async function notifyMaster(env, b) {
     );
   }
   await Promise.all(jobs);
+  // файл для календаря — отдельным сообщением, чтобы не мешал кнопке отмены
+  await sendIcsToMaster(env, b).catch(function (e) {
+    console.log('ics: ' + e.message);
+  });
 }
 
 /* Список записей на ближайшие дни — для команды /zapisi в боте. */
@@ -525,7 +580,7 @@ const SERVICE_NAMES = Object.keys(DURATION);
 const MENU_TG = {
   keyboard: [
     [{ text: '✍️ Записать клиента' }, { text: '📋 Мои записи' }],
-    [{ text: '📅 График' }, { text: '📓 Блокнот' }],
+    [{ text: '📅 График' }],
     [{ text: '📖 Планер дня' }, { text: '📱 Календарь на телефон' }],
   ],
   resize_keyboard: true,
@@ -536,10 +591,7 @@ const MENU_MAX = [
     { text: '✍️ Записать клиента', data: 'menu:zapis' },
     { text: '📋 Мои записи', data: 'menu:zapisi' },
   ],
-  [
-    { text: '📅 График', data: 'menu:grafik' },
-    { text: '📓 Блокнот', data: 'menu:zametki' },
-  ],
+  [{ text: '📅 График', data: 'menu:grafik' }],
   [{ text: '📖 Планер дня', data: 'menu:planer' }],
   [{ text: '📱 Календарь на телефон', data: 'menu:cal' }],
 ];
@@ -1645,13 +1697,18 @@ async function handleMax(env, update) {
     /* Пошаговая запись клиента: день → услуга → время → имя с телефоном.
        Ответ на нажатие в МАКСе один — /answers, он же и перерисовывает
        сообщение, поэтому каждый шаг отдаёт новый текст и новые кнопки. */
+    /* Отвечать надо быстро: МАКС ждёт ответа на нажатие пару секунд и молча
+       бросает. Поэтому работа с базой идёт после ответа, а не до.
+       Если ответить не успели — шлём обычным сообщением, чтобы мастер
+       не смотрела на кнопку, которая «не работает». */
     const step = async function (text, rows) {
-      await maxApi(
+      const r = await maxApi(
         env,
         '/answers',
         { message: { text: text, attachments: maxKeyboard(rows) } },
         '?callback_id=' + encodeURIComponent(cbk.callback_id),
       );
+      if (r && r.code && chatId) await maxSend(env, chatId, text, rows);
     };
 
     if (data === 'menu:zapis' || data.startsWith('bm:')) {
@@ -1665,14 +1722,16 @@ async function handleMax(env, update) {
         y = t.getUTCFullYear();
         mo = t.getUTCMonth();
       }
-      await setState(env, { step: 'day' });
+      // сначала ответ мастеру, запись состояния — следом
       await step('Выберите день записи:', bookDayButtons(sc, y, mo));
+      await setState(env, { step: 'day' });
       return;
     }
 
     if (data.startsWith('bd:')) {
-      await setState(env, { step: 'service', day: data.slice(3) });
+      // клавиатура услуг не зависит от базы — отвечаем сразу, состояние потом
       await step('📅 ' + ruDay(data.slice(3)) + NL + NL + 'Какая услуга?', serviceButtons());
+      await setState(env, { step: 'service', day: data.slice(3) });
       return;
     }
 
