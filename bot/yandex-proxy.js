@@ -21,8 +21,18 @@
 
 const UPSTREAM = process.env.UPSTREAM;
 
-// наружу открыты только те пути, что нужны сайту; всё остальное — 404
-const ALLOWED = ['/schedule.json', '/slots', '/busy', '/book'];
+/* Наружу открыты только те пути, что нужны сайту; всё остальное — 404.
+   Пути планера защищены отдельным ключом на стороне сервера, поэтому
+   открывать их здесь безопасно: без ключа он ответит «нет доступа». */
+const ALLOWED = [
+  '/schedule.json',
+  '/slots',
+  '/busy',
+  '/book',
+  '/planer/data',
+  '/planer/add',
+  '/planer/cancel',
+];
 
 module.exports.handler = async (event) => {
   const cors = {
