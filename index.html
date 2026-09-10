@@ -69,7 +69,7 @@
   "@type": "FAQPage",
   "mainEntity": [
     {"@type":"Question","name":"Как записаться в студию «Море красок»?","acceptedAnswer":{"@type":"Answer","text":"Выбрать свободное время на сайте more-krasok.ru, написать боту записи в Telegram или позвонить по номеру +7 950 207-43-02. Также можно написать в Telegram или WhatsApp."}},
-    {"@type":"Question","name":"Как узнать, работает ли мастер в нужный день?","acceptedAnswer":{"@type":"Answer","text":"В календаре на сайте зелёным отмечены рабочие дни, жёлтым — выходные. График плавающий и обновляется постоянно. Занятые часы показаны зачёркнутыми."}},
+    {"@type":"Question","name":"Как узнать, свободен ли нужный день?","acceptedAnswer":{"@type":"Answer","text":"В календаре на сайте зелёным отмечены рабочие дни, жёлтым — выходные. График плавающий и обновляется постоянно. Занятые часы показаны зачёркнутыми."}},
     {"@type":"Question","name":"Сколько времени занимает процедура?","acceptedAnswer":{"@type":"Answer","text":"Маникюр, педикюр, окрашивание и химическая завивка — около двух часов. Стрижки и брови — по тридцать минут."}},
     {"@type":"Question","name":"Как оплатить услуги?","acceptedAnswer":{"@type":"Answer","text":"Наличными или картой на месте. Предоплата не нужна."}},
     {"@type":"Question","name":"Что делать, если не получается прийти на запись?","acceptedAnswer":{"@type":"Answer","text":"Позвоните или напишите заранее — время освободится и станет доступно для записи другим клиентам."}},
@@ -290,6 +290,9 @@ a{color:inherit}
 .info-row .ico{width:44px;height:44px;flex:none;border-radius:14px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:19px}
 .info-row .lbl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 .info-row .val{font-size:15px;font-weight:700}
+.side-links{font-size:14px;color:var(--ink-2);text-align:center;line-height:2}
+.side-links a{color:var(--rose-deep);font-weight:600;text-decoration:none;border-bottom:1px solid rgba(178,125,125,.35);margin:0 6px}
+.side-links a:hover{border-bottom-color:var(--rose-deep)}
 .side-note{font-size:13.5px;color:var(--ink-3);text-align:center}
 
 /* ---------- форма заявки ---------- */
@@ -404,8 +407,8 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
       </div>
       <div class="hero-stats">
         <div class="stat"><b data-count="8">0</b><span>услуг</span></div>
-        <div class="stat"><b>9—19</b><span>часы работы</span></div>
-        <div class="stat"><b class="grad-text" data-count="400" data-prefix="от " data-suffix="₽">0</b><span>цены</span></div>
+        <div class="stat"><b>8—19</b><span>часы работы</span></div>
+        <div class="stat"><b class="grad-text" data-count="300" data-prefix="от " data-suffix="₽">0</b><span>цены</span></div>
       </div>
     </div>
     <div class="hero-visual rv rv-s" data-par="0.06">
@@ -426,9 +429,9 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
 <section class="section">
   <div class="wrap">
     <div class="perks" id="perks">
-      <div class="perk rv" style="--d:0.00s"><div class="ico">🌸</div><h3>Индивидуальный подход</h3><p>К каждому клиенту — внимательно, с заботой и без спешки.</p></div>
-      <div class="perk rv" style="--d:0.09s"><div class="ico">✨</div><h3>Качественные материалы</h3><p>Только проверенные профессиональные средства и гель-лаки.</p></div>
-      <div class="perk rv" style="--d:0.18s"><div class="ico">🕐</div><h3>Удобное время</h3><p>Работаю с 8:00 до 19:00. Запись по телефону, в Telegram или WhatsApp.</p></div>
+      <div class="perk rv" style="--d:0.00s"><div class="ico">🌸</div><h3>Один мастер</h3><p>Вас ведёт Анастасия от начала до конца — не передают из рук в руки.</p></div>
+      <div class="perk rv" style="--d:0.09s"><div class="ico">✨</div><h3>Честная цена</h3><p>Стоимость известна до начала работы. Оплата наличными или картой.</p></div>
+      <div class="perk rv" style="--d:0.18s"><div class="ico">🕐</div><h3>С 8:00 до 19:00</h3><p>Свободное время видно в календаре — записаться можно за минуту, без звонка.</p></div>
     </div>
   </div>
 </section>
@@ -436,9 +439,8 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
 <section class="section" id="services" style="padding-top:0">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="h-lbl">Услуги и цены</span>
       <h2 class="h2">Услуги и цены</h2>
-      <p class="sub">Честные цены и профессиональные материалы. Итоговая стоимость окрашивания и завивки зависит от длины и густоты волос — скажу точно на консультации.</p>
+      <p class="sub">Стоимость окрашивания и завивки зависит от длины и густоты волос — точную сумму скажу до начала работы.</p>
     </div>
     <div class="bento" id="bento">
       <div class="card rv" style="--d:0.00s">
@@ -496,9 +498,8 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
 <section class="section booking" id="booking">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="h-lbl">Запись</span>
       <h2 class="h2">Записаться онлайн</h2>
-      <p class="sub">Зелёные дни — рабочие. Выберите удобный и напишите любым способом.</p>
+      <p class="sub">Зелёным отмечены рабочие дни. Выберите день и свободное время — записаться можно прямо здесь.</p>
     </div>
     <div class="book-grid">
       <div class="glass rv rv-l">
@@ -519,24 +520,32 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
       <div class="side rv rv-r">
         <div class="info-row"><span class="ico">🕐</span><div><p class="lbl">Часы работы</p><p class="val">8:00 — 19:00</p></div></div>
         <div class="info-row"><span class="ico">📍</span><div><p class="lbl">Адрес</p><p class="val">Екатеринбург, ул. Донбасская, 4</p></div></div>
-        <a href="tel:+79502074302" class="btn btn-brand btn-full"><span>📞 +7 950 207-43-02</span></a>
-        <a href="https://t.me/Nastasiya0619" target="_blank" rel="noopener" class="btn btn-tg btn-full">✈️ Написать в Telegram</a>
-        <a href="https://t.me/more_krasok_zapis_bot" target="_blank" rel="noopener" class="btn btn-tg btn-full">🤖 Бот для записи</a>
-        <a href="https://wa.me/79502074302" target="_blank" rel="noopener" class="btn btn-wa btn-full">💬 Написать в WhatsApp</a>
-        <p class="side-note">Отвечаю в часы работы студии</p>
+        <a href="tel:+79502074302" class="btn btn-brand btn-full"><span>Позвонить · +7 950 207-43-02</span></a>
+        <!-- Раньше здесь стояли четыре кнопки подряд, две из них вели в Telegram.
+             Человеку было непонятно, какую нажимать. Оставлено одно главное
+             действие, остальное — спокойной строкой. -->
+        <p class="side-links">Или напишите:
+          <a href="https://t.me/Nastasiya0619" target="_blank" rel="noopener">Telegram</a>
+          <a href="https://wa.me/79502074302" target="_blank" rel="noopener">WhatsApp</a>
+          <a href="https://t.me/more_krasok_zapis_bot" target="_blank" rel="noopener">бот записи</a>
+        </p>
+        <p class="side-note">Отвечаю в рабочие часы</p>
 
         <form class="bform" id="bform" novalidate>
-          <p class="bform-head">Записаться онлайн</p>
+          <p class="bform-head">Выберите время</p>
 
+          <!-- Шаг «Время» виден всегда, а не появляется после выбора дня:
+               иначе нумерация прыгала с 2 на 4 и человек не понимал,
+               куда делся третий шаг. -->
           <label class="fld-lbl">1. Услуга</label>
           <select class="fld" name="service" id="bformSvc"></select>
 
           <label class="fld-lbl">2. День</label>
           <p class="bform-hint" id="bformDay">Нажмите зелёный день в календаре</p>
 
-          <div id="bformSlotsWrap" hidden>
-            <label class="fld-lbl">3. Время</label>
-            <div class="slots" id="bformSlots"></div>
+          <label class="fld-lbl">3. Время</label>
+          <div id="bformSlotsWrap">
+            <div class="slots" id="bformSlots"><p class="slots-empty">Сначала выберите день</p></div>
           </div>
 
           <label class="fld-lbl">4. Контакты</label>
@@ -568,7 +577,6 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
 <section class="section" id="faq">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="h-lbl">Вопросы</span>
       <h2 class="h2">Частые вопросы</h2>
       <p class="sub">Если чего-то не нашли — позвоните, отвечу лично.</p>
     </div>
@@ -580,7 +588,7 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
         <p class="ans">Тремя способами: выбрать свободное время <a href="#booking">прямо на этой странице</a>, написать <a href="https://t.me/more_krasok_zapis_bot" target="_blank" rel="noopener">боту записи</a> или позвонить по номеру <a href="tel:+79502074302">+7 950 207-43-02</a>. Ещё можно написать в Telegram или WhatsApp — отвечаю в рабочие часы.</p>
       </details>
       <details>
-        <summary>Как понять, работаю ли я в нужный день?</summary>
+        <summary>Как узнать, свободен ли нужный день?</summary>
         <p class="ans">В <a href="#booking">календаре на странице</a> зелёным отмечены рабочие дни, жёлтым — выходные. График плавающий и меняется, поэтому календарь обновляется постоянно. Занятые часы там же показаны зачёркнутыми.</p>
       </details>
       <details>
@@ -780,7 +788,7 @@ fetch(SCHEDULE_URL,{cache:'no-cache'}).then(function(r){
    заполняется, и понятно, почему выбор невелик. */
 var bform=document.getElementById('bform'),bnote=document.getElementById('bformNote');
 var svcSel=document.getElementById('bformSvc'),dayHint=document.getElementById('bformDay');
-var slotsWrap=document.getElementById('bformSlotsWrap'),slotsBox=document.getElementById('bformSlots');
+var slotsBox=document.getElementById('bformSlots');
 
 svcSel.innerHTML=SERVICES.map(function(s){
   return '<option value="'+s.n+'">'+s.n+' · '+s.t+'</option>';
@@ -791,11 +799,11 @@ function ruDate(key){
   return (+p[2])+' '+MGEN[+p[1]-1]+', '+WD[d.getDay()];
 }
 
+/* Блок времени всегда на месте — меняется только его содержимое.
+   Раньше он прятался целиком, и нумерация шагов прыгала с 2 на 4. */
 function resetSlots(msg){
   pickedStart=null;
-  slotsWrap.hidden=true;
-  slotsBox.innerHTML='';
-  if(msg){slotsWrap.hidden=false;slotsBox.innerHTML='<p class="slots-empty">'+msg+'</p>';}
+  slotsBox.innerHTML='<p class="slots-empty">'+(msg||'Сначала выберите день')+'</p>';
 }
 
 function loadSlots(){
@@ -811,7 +819,6 @@ function loadSlots(){
     var items=free.map(function(s){return {t:s.start,min:s.min,free:true}})
       .concat(busy.map(function(b){return {t:b.start,free:false}}));
     items.sort(function(a,b){return a.t<b.t?-1:1});
-    slotsWrap.hidden=false;
     slotsBox.innerHTML=items.map(function(it){
       return it.free
         ? '<button type="button" class="slot" data-min="'+it.min+'">'+it.t+'</button>'
