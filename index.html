@@ -188,6 +188,7 @@ a{color:inherit}
 .hero-copy h1 .ln:nth-child(2) i{animation-delay:.12s}
 @keyframes riseIn{to{transform:none}}
 @media(prefers-reduced-motion:reduce){.hero-copy h1 .ln i{transform:none;animation:none}}
+.hero-copy .h1-sub{margin-top:14px;font-size:clamp(15px,2vw,18px);font-weight:600;color:var(--ink-2)}
 .hero-copy .lead{margin-top:22px;font-size:clamp(15px,2vw,18px);color:var(--ink-2);max-width:480px}
 .hero-btns{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
 .hero-stats{display:flex;gap:clamp(20px,4vw,44px);margin-top:44px;flex-wrap:wrap}
@@ -393,6 +394,7 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
     <div class="hero-copy">
       <span class="chip"><span class="dot"></span>Студия красоты · Екатеринбург, Уралмаш</span>
       <h1><span class="ln"><i>Море</i></span><span class="ln"><i class="grad-text">красок</i></span></h1>
+      <p class="h1-sub">Салон красоты в Екатеринбурге на Уралмаше — стрижки, окрашивание, маникюр, педикюр</p>
       <p class="lead">Стрижки, окрашивание, маникюр и педикюр у мастера Анастасии. Уютная студия, где к каждому — внимательно и без спешки.</p>
       <div class="hero-btns">
         <a href="#booking" class="btn btn-brand"><span>Записаться</span></a>
@@ -421,7 +423,11 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
 
 <section class="section">
   <div class="wrap">
-    <div class="perks" id="perks"></div>
+    <div class="perks" id="perks">
+      <div class="perk rv" style="--d:0.00s"><div class="ico">🌸</div><h3>Индивидуальный подход</h3><p>К каждому клиенту — внимательно, с заботой и без спешки.</p></div>
+      <div class="perk rv" style="--d:0.09s"><div class="ico">✨</div><h3>Качественные материалы</h3><p>Только проверенные профессиональные средства и гель-лаки.</p></div>
+      <div class="perk rv" style="--d:0.18s"><div class="ico">🕐</div><h3>Удобное время</h3><p>Работаю с 8:00 до 19:00. Запись по телефону, в Telegram или WhatsApp.</p></div>
+    </div>
   </div>
 </section>
 
@@ -429,10 +435,59 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
   <div class="wrap">
     <div class="sec-head rv">
       <span class="h-lbl">Услуги и цены</span>
-      <h2 class="h2">Красота в каждой детали</h2>
+      <h2 class="h2">Услуги и цены</h2>
       <p class="sub">Честные цены и профессиональные материалы. Итоговая стоимость окрашивания и завивки зависит от длины и густоты волос — скажу точно на консультации.</p>
     </div>
-    <div class="bento" id="bento"></div>
+    <div class="bento" id="bento">
+      <div class="card rv" style="--d:0.00s">
+        <a class="go" href="#booking" aria-label="Записаться: Маникюр">↗</a>
+        <div class="shot"><img src="images/svc-manicure.svg" alt="Маникюр — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
+        <div class="body"><h3>Маникюр</h3><p class="desc">Без покрытия — 1000 ₽, с гель-лаком — 1800 ₽, наращивание с покрытием — 2800 ₽.</p>
+        <div class="meta"><span class="price">от 1000₽</span><span class="dur">⏱ 2 часа</span></div></div>
+      </div>
+      <div class="card rv" style="--d:0.08s">
+        <a class="go" href="#booking" aria-label="Записаться: Педикюр">↗</a>
+        <div class="shot"><img src="images/svc-pedicure.svg" alt="Педикюр — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
+        <div class="body"><h3>Педикюр</h3><p class="desc">Без покрытия — 1000 ₽, с покрытием — 1600 ₽, обработка стоп — 1400 ₽.</p>
+        <div class="meta"><span class="price">от 1000₽</span><span class="dur">⏱ 2 часа</span></div></div>
+      </div>
+      <div class="card rv" style="--d:0.16s">
+        <a class="go" href="#booking" aria-label="Записаться: Окрашивание">↗</a>
+        <div class="shot"><img src="images/svc-coloring.svg" alt="Окрашивание — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
+        <div class="body"><h3>Окрашивание</h3><p class="desc">Корни — 1500 ₽, в один тон и тонирование — от 2000 ₽, осветление — 2000 ₽, мелирование — от 2500 ₽.</p>
+        <div class="meta"><span class="price">от 1500₽</span><span class="dur">⏱ 2 часа</span></div></div>
+      </div>
+      <div class="card rv" style="--d:0.24s">
+        <a class="go" href="#booking" aria-label="Записаться: Химзавивка">↗</a>
+        <div class="shot"><img src="images/svc-perm.svg" alt="Химзавивка — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
+        <div class="body"><h3>Химзавивка</h3><p class="desc">Биозавивка и классическая — устойчивая форма надолго.</p>
+        <div class="meta"><span class="price">от 3000₽</span><span class="dur">⏱ ~2 часа</span></div></div>
+      </div>
+      <div class="card rv" style="--d:0.00s">
+        <a class="go" href="#booking" aria-label="Записаться: Женская стрижка">↗</a>
+        <div class="shot"><img src="images/svc-haircut-women.svg" alt="Женская стрижка — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
+        <div class="body"><h3>Женская стрижка</h3><p class="desc">С учётом формы лица и пожеланий клиента.</p>
+        <div class="meta"><span class="price">от 600₽</span><span class="dur">⏱ 30 мин</span></div></div>
+      </div>
+      <div class="card rv" style="--d:0.08s">
+        <a class="go" href="#booking" aria-label="Записаться: Мужская стрижка">↗</a>
+        <div class="shot"><img src="images/svc-haircut-men.svg" alt="Мужская стрижка — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
+        <div class="body"><h3>Мужская стрижка</h3><p class="desc">Аккуратная классическая или современная.</p>
+        <div class="meta"><span class="price">300₽</span><span class="dur">⏱ 30 мин</span></div></div>
+      </div>
+      <div class="card rv" style="--d:0.16s">
+        <a class="go" href="#booking" aria-label="Записаться: Детская стрижка">↗</a>
+        <div class="shot"><img src="images/svc-haircut-kids.svg" alt="Детская стрижка — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
+        <div class="body"><h3>Детская стрижка</h3><p class="desc">Комфортно для детей, в спокойной обстановке. Пенсионерам — 400 ₽.</p>
+        <div class="meta"><span class="price">400₽</span><span class="dur">⏱ 30 мин</span></div></div>
+      </div>
+      <div class="card rv" style="--d:0.24s">
+        <a class="go" href="#booking" aria-label="Записаться: Брови">↗</a>
+        <div class="shot"><img src="images/svc-brows.svg" alt="Брови — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
+        <div class="body"><h3>Брови</h3><p class="desc">Коррекция и окрашивание. Подбор идеальной формы.</p>
+        <div class="meta"><span class="price">от 800₽</span><span class="dur">⏱ 30 минут</span></div></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -440,7 +495,7 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
   <div class="wrap">
     <div class="sec-head rv">
       <span class="h-lbl">Запись</span>
-      <h2 class="h2">График и свободные дни</h2>
+      <h2 class="h2">Записаться онлайн</h2>
       <p class="sub">Зелёные дни — рабочие. Выберите удобный и напишите любым способом.</p>
     </div>
     <div class="book-grid">
@@ -512,7 +567,7 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
   <div class="wrap">
     <div class="sec-head rv">
       <span class="h-lbl">Вопросы</span>
-      <h2 class="h2">Коротко о главном</h2>
+      <h2 class="h2">Частые вопросы</h2>
       <p class="sub">Если чего-то не нашли — позвоните, отвечу лично.</p>
     </div>
     <!-- Написано разметкой, а не собирается скриптом: поисковику нужен
@@ -570,9 +625,7 @@ var PERKS=[
   {i:'✨',n:'Качественные материалы',d:'Только проверенные профессиональные средства и гель-лаки.'},
   {i:'🕐',n:'Удобное время',d:'Работаю с 8:00 до 19:00. Запись по телефону, в Telegram или WhatsApp.'}
 ];
-document.getElementById('perks').innerHTML=PERKS.map(function(p,k){
-  return '<div class="perk rv" style="--d:'+(k*.09)+'s"><div class="ico">'+p.i+'</div><h3>'+p.n+'</h3><p>'+p.d+'</p></div>';
-}).join('');
+/* Преимущества тоже записаны разметкой — по той же причине, что и услуги. */
 
 // ---- Услуги ----
 var SERVICES=[
@@ -585,13 +638,11 @@ var SERVICES=[
   {ic:'svc-haircut-kids',img:'haircut-kids',n:'Детская стрижка',d:'Комфортно для детей, в спокойной обстановке. Пенсионерам — 400 ₽.',t:'30 мин',p:'400₽'},
   {ic:'svc-brows',img:'brows',n:'Брови',d:'Коррекция и окрашивание. Подбор идеальной формы.',t:'30 минут',p:'от 800₽'}
 ];
-document.getElementById('bento').innerHTML=SERVICES.map(function(s,k){
-  return '<div class="card rv" style="--d:'+((k%4)*.08)+'s">'+
-    '<a class="go" href="#booking" aria-label="Записаться: '+s.n+'">↗</a>'+
-    '<div class="shot"><img src="images/'+s.ic+'.svg" alt="'+s.n+'" width="560" height="420" loading="lazy"></div>'+
-    '<div class="body"><h3>'+s.n+'</h3><p class="desc">'+s.d+'</p>'+
-    '<div class="meta"><span class="price">'+s.p+'</span><span class="dur">⏱ '+s.t+'</span></div></div></div>';
-}).join('');
+/* Карточки услуг больше не собираются скриптом — они записаны разметкой выше.
+   Поисковик читает исходный код страницы: пока карточки рисовались скриптом,
+   вместо «Маникюр — от 1000 ₽» там стояла заготовка, и самое ценное для
+   поиска — названия услуг и цены — могло вообще не попасть в индекс.
+   Массив SERVICES остался: из него собирается список услуг в форме записи. */
 
 // ---- бегущая строка: дублируем контент для бесшовности ----
 var tt=document.getElementById('tickerTrack');
