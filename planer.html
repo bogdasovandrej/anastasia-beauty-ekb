@@ -174,7 +174,7 @@ function api(path,opts){
 function setOffline(on){document.getElementById('off').classList.toggle('on',on)}
 
 function refresh(){
-  return api('/planer/data&day='+day).then(function(d){
+  return api('/planer/data?day='+day).then(function(d){
     if(!d||d.error)return;
     data=d;save('day_'+day,d);setOffline(false);render();
   }).catch(function(){setOffline(true)});
@@ -187,7 +187,7 @@ function prefetch(){
   var d=day,chain=Promise.resolve();
   for(var i=1;i<=DAYS_AHEAD;i++){
     (function(dd){chain=chain.then(function(){
-      return api('/planer/data&day='+dd).then(function(x){if(x&&!x.error)save('day_'+dd,x)}).catch(function(){});
+      return api('/planer/data?day='+dd).then(function(x){if(x&&!x.error)save('day_'+dd,x)}).catch(function(){});
     })})(d=shiftDay(d,1));
   }
   chain.then(drawStrip);
@@ -273,7 +273,7 @@ document.getElementById('infoClose').onclick=function(){document.getElementById(
 document.getElementById('addOk').onclick=function(){
   var body={start:pickStart,service:document.getElementById('svc').value,
     name:document.getElementById('nm').value.trim(),phone:document.getElementById('ph').value.trim()};
-  api('/planer/add&day='+day,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+  api('/planer/add?day='+day,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){
       if(r&&r.ok){document.getElementById('add').close();
         document.getElementById('nm').value='';document.getElementById('ph').value='';refresh()}
@@ -284,7 +284,7 @@ document.getElementById('addOk').onclick=function(){
       m.textContent='Нет сети. Записать можно только с интернетом'});
 };
 document.getElementById('infoDel').onclick=function(){
-  api('/planer/cancel&day='+day,{method:'POST',headers:{'Content-Type':'application/json'},
+  api('/planer/cancel?day='+day,{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({id:pickId})})
     .then(function(){document.getElementById('info').close();refresh()})
     .catch(function(){document.getElementById('info').close()});
