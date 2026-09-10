@@ -1394,17 +1394,20 @@ async function handleTelegram(env, update) {
       await tg(env, 'sendMessage', {
         chat_id: chatId,
         text:
-          'Планер дня — расписание с 9:00 до 19:00.' +
+          'Планер дня — расписание с 8:00 до 19:00.' +
           NL +
           NL +
-          SELF_URL +
-          '/planer?key=' +
+          SITE +
+          '/planer.html?key=' +
           k +
           NL +
           NL +
-          'Нажмите на свободный час, чтобы записать клиента, или на запись, чтобы позвонить или отменить.' +
+          '⚡ Откройте ссылку и добавьте её на главный экран: меню браузера → «На главный экран». ' +
+          'Появится значок, планер будет открываться мгновенно и работать даже без интернета — ' +
+          'он держит расписание на три недели вперёд прямо в телефоне.' +
           NL +
-          'Добавьте ссылку на главный экран телефона — будет как приложение.' +
+          NL +
+          'Нажмите на свободный час, чтобы записать клиента, или на запись, чтобы позвонить или отменить.' +
           NL +
           NL +
           'Ссылку никому не передавайте: по ней видны телефоны клиентов.',
@@ -1702,13 +1705,18 @@ async function handleMax(env, update) {
        Если ответить не успели — шлём обычным сообщением, чтобы мастер
        не смотрела на кнопку, которая «не работает». */
     const step = async function (text, rows) {
-      const r = await maxApi(
+      /* Раньше ответ на нажатие нёс в себе целое сообщение с клавиатурой:
+         МАКС отвечал на это 1,5 секунды и часто не успевал, а результат
+         подменял старое сообщение с меню — оно далеко вверху, и мастеру
+         приходилось листать. Теперь нажатие подтверждаем пустым ответом
+         (он быстрый), а содержимое шлём новым сообщением вниз чата. */
+      await maxApi(
         env,
         '/answers',
-        { message: { text: text, attachments: maxKeyboard(rows) } },
+        {},
         '?callback_id=' + encodeURIComponent(cbk.callback_id),
-      );
-      if (r && r.code && chatId) await maxSend(env, chatId, text, rows);
+      ).catch(function () {});
+      if (chatId) await maxSend(env, chatId, text, rows);
     };
 
     if (data === 'menu:zapis' || data.startsWith('bm:')) {
@@ -1792,13 +1800,16 @@ async function handleMax(env, update) {
       } else if (what === 'planer') {
         const k = await planerKey(env);
         out =
-          'Планер дня — расписание с 9:00 до 19:00.' +
+          'Планер дня — расписание с 8:00 до 19:00.' +
           NL +
           NL +
-          SELF_URL +
-          '/planer?key=' +
+          SITE +
+          '/planer.html?key=' +
           k +
           NL +
+          NL +
+          'Добавьте ссылку на главный экран телефона — планер будет открываться мгновенно ' +
+          'и работать без интернета.' +
           NL +
           'Нажмите на свободный час, чтобы записать клиента.' +
           NL +
@@ -1819,25 +1830,23 @@ async function handleMax(env, update) {
       } else if (what === 'grafik') {
         const sc = await loadSchedule(env);
         const t = new Date();
-        await maxApi(
-          env,
-          '/answers',
-          {
-            message: {
-              text: monthText(sc, t.getUTCFullYear(), t.getUTCMonth()),
-              attachments: maxKeyboard(calendarButtons(sc, t.getUTCFullYear(), t.getUTCMonth())),
-            },
-          },
-          '?callback_id=' + encodeURIComponent(cbk.callback_id),
+        await maxApi(env, '/answers', {}, '?callback_id=' + encodeURIComponent(cbk.callback_id)).catch(
+          function () {},
         );
+        if (chatId) {
+          await maxSend(
+            env,
+            chatId,
+            monthText(sc, t.getUTCFullYear(), t.getUTCMonth()),
+            calendarButtons(sc, t.getUTCFullYear(), t.getUTCMonth()),
+          );
+        }
         return;
       }
-      await maxApi(
-        env,
-        '/answers',
-        { message: { text: out, attachments: maxKeyboard(MENU_MAX) } },
-        '?callback_id=' + encodeURIComponent(cbk.callback_id),
+      await maxApi(env, '/answers', {}, '?callback_id=' + encodeURIComponent(cbk.callback_id)).catch(
+        function () {},
       );
+      if (chatId) await maxSend(env, chatId, out, MENU_MAX);
       return;
     }
 
@@ -2091,17 +2100,16 @@ export default {
       if (path === '/planer' || path.startsWith('/planer/')) {
         const k = await getSetting(env, 'planer_key');
         if (!k || url.searchParams.get('key') !== k) {
-          return new Response('Нет доступа', { status: 403 });
+          return new Response('Нет доступа', { status: 403, headers: cors });
         }
         if (path === '/planer') {
-          return new Response(planerHtml(), {
-            headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
-          });
+          // страница переехала на сайт: там российский адрес и работа без сети
+          return Response.redirect(SITE + '/planer.html?key=' + k, 302);
         }
         const day = url.searchParams.get('day') || nowEkb().day;
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json({ error: 'Нужен день' }, 400);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json({ error: 'Нужен день' }, 400, cors);
 
-        if (path === '/planer/data') return json(await dayData(env, day));
+        if (path === '/planer/data') return json(await dayData(env, day), 200, cors);
 
         if (path === '/planer/add' && request.method === 'POST') {
           const b = await request.json().catch(function () {
@@ -2116,7 +2124,7 @@ export default {
             start: b.start,
             silent: true,
           });
-          return json(res, res.ok ? 200 : 400);
+          return json(res, res.ok ? 200 : 400, cors);
         }
 
         if (path === '/planer/cancel' && request.method === 'POST') {
@@ -2124,9 +2132,9 @@ export default {
             return {};
           });
           await cancelBooking(env, parseInt(b.id, 10));
-          return json({ ok: true });
+          return json({ ok: true }, 200, cors);
         }
-        return new Response('Не найдено', { status: 404 });
+        return new Response('Не найдено', { status: 404, headers: cors });
       }
 
       /* Временная проверка: сколько кнопок принимает МАКС.
