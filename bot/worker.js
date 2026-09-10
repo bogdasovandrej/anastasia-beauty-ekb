@@ -668,10 +668,20 @@ async function slotButtons(env, day, service) {
    строкой. Длинную цепочку цифр считаем телефоном, остальное — именем.
    Общая для обоих мессенджеров, чтобы поведение не разъезжалось. */
 async function bookFromLine(env, st, raw) {
+  /* Разбор строки «Иванова 89001234567».
+     Раньше бралось первое совпадение подряд идущих цифр и пробелов —
+     и на строке вроде «886 64 79506562515» телефоном становился хвост,
+     а именем оставался обрывок «886 64». Теперь ищем все куски, похожие
+     на телефон, и берём последний с десятью и более цифрами: имя человек
+     пишет первым, телефон — в конце. */
   const line = String(raw || '').trim();
-  const m = line.match(/[\d+()\s-]{10,}/);
-  const phone = m && (m[0].match(/\d/g) || []).length >= 10 ? m[0].trim() : '';
-  const name = (phone ? line.replace(m[0], '') : line).trim() || 'Без имени';
+  const all = line.match(/\+?\d[\d\s()-]{8,}\d/g) || [];
+  const phones = all.filter(function (x) {
+    return (x.match(/\d/g) || []).length >= 10;
+  });
+  const phone = phones.length ? phones[phones.length - 1].trim() : '';
+  // сначала убираем пробелы, потом хвостовую пунктуацию: иначе «Ольга, » остаётся с запятой
+  const name = (phone ? line.replace(phone, '') : line).trim().replace(/[,;.\s]+$/, '') || 'Без имени';
 
   const res = await createBooking(env, {
     name: name,
