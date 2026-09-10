@@ -435,7 +435,7 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
         <div class="info-row"><span class="ico">📍</span><div><p class="lbl">Адрес</p><p class="val">Екатеринбург, ул. Донбасская, 4</p></div></div>
         <a href="tel:+79502074302" class="btn btn-brand btn-full"><span>📞 +7 950 207-43-02</span></a>
         <a href="https://t.me/Nastasiya0619" target="_blank" rel="noopener" class="btn btn-tg btn-full">✈️ Написать в Telegram</a>
-        <a href="https://t.me/more_krasok_zapis_bot" target="_blank" rel="noopener" class="btn btn-tg btn-full">🤖 Записаться в Telegram за 3 нажатия</a>
+        <a href="https://t.me/more_krasok_zapis_bot" target="_blank" rel="noopener" class="btn btn-tg btn-full">🤖 Бот для записи</a>
         <a href="https://wa.me/79502074302" target="_blank" rel="noopener" class="btn btn-wa btn-full">💬 Написать в WhatsApp</a>
         <p class="side-note">Отвечаю в часы работы студии</p>
 
@@ -510,13 +510,13 @@ document.getElementById('perks').innerHTML=PERKS.map(function(p,k){
 // ---- Услуги ----
 var SERVICES=[
   {ic:'svc-manicure',img:'manicure',n:'Маникюр',d:'Покрытие гель-лак, дизайн, уход за ногтями и кутикулой.',t:'2 часа',p:'от 1800₽'},
-  {ic:'svc-pedicure',img:'pedicure',n:'Педикюр',d:'Аппаратный педикюр с покрытием. Аккуратно и гигиенично.',t:'1–1.5 ч',p:'от 2000₽'},
-  {ic:'svc-coloring',img:'coloring',n:'Окрашивание',d:'Тонирование, окрашивание корней, мелирование, балаяж.',t:'1.5–3 ч',p:'от 1500₽'},
+  {ic:'svc-pedicure',img:'pedicure',n:'Педикюр',d:'Аппаратный педикюр с покрытием. Аккуратно и гигиенично.',t:'2 часа',p:'от 2000₽'},
+  {ic:'svc-coloring',img:'coloring',n:'Окрашивание',d:'Тонирование, окрашивание корней, мелирование, балаяж.',t:'2 часа',p:'от 1500₽'},
   {ic:'svc-perm',img:'perm',n:'Химзавивка',d:'Биозавивка и классическая — устойчивая форма надолго.',t:'~2 часа',p:'от 2500₽'},
   {ic:'svc-haircut-women',img:'haircut-women',n:'Женская стрижка',d:'С учётом формы лица и пожеланий клиента.',t:'30 мин',p:'от 600₽'},
   {ic:'svc-haircut-men',img:'haircut-men',n:'Мужская стрижка',d:'Аккуратная классическая или современная.',t:'30 мин',p:'от 400₽'},
   {ic:'svc-haircut-kids',img:'haircut-kids',n:'Детская стрижка',d:'Комфортно для детей, в спокойной обстановке.',t:'30 мин',p:'от 400₽'},
-  {ic:'svc-brows',img:'brows',n:'Брови',d:'Коррекция и окрашивание. Подбор идеальной формы.',t:'30–60 мин',p:'от 800₽'}
+  {ic:'svc-brows',img:'brows',n:'Брови',d:'Коррекция и окрашивание. Подбор идеальной формы.',t:'30 минут',p:'от 800₽'}
 ];
 document.getElementById('bento').innerHTML=SERVICES.map(function(s,k){
   return '<div class="card rv" style="--d:'+((k%4)*.08)+'s">'+

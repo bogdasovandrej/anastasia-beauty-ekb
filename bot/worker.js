@@ -216,13 +216,13 @@ async function applyTap(env, data) {
 Значения взяты из описаний услуг на сайте, мастеру их стоит подтвердить. */
 const DURATION = {
   Маникюр: 120,
-  Педикюр: 90,
-  Окрашивание: 180,
+  Педикюр: 120,
+  Окрашивание: 120,
   Химзавивка: 120,
   'Женская стрижка': 30,
   'Мужская стрижка': 30,
   'Детская стрижка': 30,
-  Брови: 60,
+  Брови: 30,
 };
 const WORK_FROM = 9 * 60; // 9:00
 const WORK_TO = 19 * 60; // 19:00
@@ -2068,6 +2068,46 @@ export default {
           return json({ ok: true });
         }
         return new Response('Не найдено', { status: 404 });
+      }
+
+      /* Временная проверка: сколько кнопок принимает МАКС.
+         Шлём в заведомо несуществующий чат — если клавиатура велика,
+         ошибка придёт про неё, а не про чат, и мамин чат не засоряется. */
+      if (path === '/diag/max') {
+        const cases = {
+          'обычные кнопки': [[{ text: '1', data: 'a' }, { text: '2', data: 'b' }]],
+          'текст из пробела': [[{ text: ' ', data: 'x' }, { text: '2', data: 'b' }]],
+          'пустой текст': [[{ text: '', data: 'x' }, { text: '2', data: 'b' }]],
+          'точка вместо пробела': [[{ text: '·', data: 'x' }, { text: '2', data: 'b' }]],
+          'одинаковый data у двух': [[{ text: '1', data: 'x' }, { text: '2', data: 'x' }]],
+          'настоящий календарь': null,
+        };
+        const t0 = Date.now();
+        const sc = await loadSchedule(env);
+        const tLoad = Date.now() - t0;
+        const t = new Date();
+        const cal = bookDayButtons(sc, t.getUTCFullYear(), t.getUTCMonth());
+        const t1 = Date.now();
+        await setState(env, { step: 'проверка' });
+        const tState = Date.now() - t1;
+
+        const out = [{ шаг: 'чтение графика из базы', мс: tLoad }, { шаг: 'запись состояния', мс: tState }];
+
+        // тот же метод, которым бот отвечает на нажатия
+        for (const [имя, rows] of [
+          ['ответ: маленькая клавиатура', [[{ text: '1', data: 'a' }]]],
+          ['ответ: календарь целиком', cal],
+        ]) {
+          const t2 = Date.now();
+          const r = await maxApi(
+            env,
+            '/answers',
+            { message: { text: 'тест', attachments: maxKeyboard(rows) } },
+            '?callback_id=zzz',
+          );
+          out.push({ шаг: имя, мс: Date.now() - t2, ответ: JSON.stringify(r).slice(0, 200) });
+        }
+        return json(out);
       }
 
       if (path === '/diag') return json(await handleDiag(env));
