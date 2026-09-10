@@ -1938,6 +1938,25 @@ async function handleDiag(env) {
   }
   const sched = await loadSchedule(env);
 
+  // состояние вебхука клиентского бота: молчащий бот чаще всего означает,
+  // что Telegram не может достучаться, а не ошибку в коде
+  let clientHook = null;
+  if (env.TG_CLIENT_TOKEN) {
+    try {
+      const r = await fetch('https://api.telegram.org/bot' + env.TG_CLIENT_TOKEN + '/getWebhookInfo');
+      const j = await r.json();
+      if (j.ok) {
+        clientHook = {
+          адрес: j.result.url || 'не задан',
+          ждут_доставки: j.result.pending_update_count,
+          последняя_ошибка: j.result.last_error_message || 'нет',
+        };
+      }
+    } catch (e) {
+      clientHook = 'ошибка: ' + e.message;
+    }
+  }
+
   // адрес клиентского бота — нужен, чтобы поставить ссылку на сайт
   let clientBot = null;
   if (env.TG_CLIENT_TOKEN) {
@@ -1970,6 +1989,7 @@ async function handleDiag(env) {
 
   return {
     клиентский_бот: clientBot,
+    вебхук_клиентского: clientHook,
     диалоги_в_максе: maxChats,
     секреты: {
       TG_TOKEN: !!env.TG_TOKEN,

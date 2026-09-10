@@ -118,7 +118,12 @@ background:linear-gradient(135deg,#d4a5a5,#b27d7d)}
    открывается мгновенно и отвечает на вопрос «когда свободно» даже там,
    где интернета нет. */
 
-var API='https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net';
+/* Два адреса: сначала российский шлюз — он быстрый и не заблокирован,
+   потом прямой адрес сервера как запасной. Так планер работает и до того,
+   как в шлюз добавят новые пути, и если один из адресов вдруг отвалится.
+   Удачный адрес запоминается, чтобы не пробовать оба каждый раз. */
+var HOSTS=['https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net',
+           'https://mk-bot.more-krasok-bot.workers.dev'];
 var FROM=480,TO=1140,STEP=30,DAYS_AHEAD=21;
 var KEY=null,day=null,data=null,pickStart=null,pickId=null;
 
@@ -151,9 +156,20 @@ document.getElementById('gateOk').onclick=function(){
 };
 
 // ---- сеть ----
+function one(host,path,opts){
+  var url=host+path+(path.indexOf('?')<0?'?':'&')+'key='+encodeURIComponent(KEY);
+  return fetch(url,opts).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();   // шлюз без нужного пути отдаёт текст — разбор упадёт, и мы уйдём на запасной
+  });
+}
 function api(path,opts){
-  return fetch(API+path+(path.indexOf('?')<0?'?':'&')+'key='+encodeURIComponent(KEY),opts)
-    .then(function(r){return r.json()});
+  var order=HOSTS.slice(),good=load('host');
+  if(good&&order.indexOf(good)>0)order=[good].concat(order.filter(function(h){return h!==good}));
+  return one(order[0],path,opts).then(function(r){save('host',order[0]);return r})
+    .catch(function(){
+      return one(order[1],path,opts).then(function(r){save('host',order[1]);return r});
+    });
 }
 function setOffline(on){document.getElementById('off').classList.toggle('on',on)}
 
