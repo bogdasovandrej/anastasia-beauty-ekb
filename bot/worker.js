@@ -225,6 +225,7 @@ async function applyTap(env, data) {
    мастер получит уведомление, просто без имени. Терять запись из-за
    недоступности хранилища хуже, чем показать «имя не загрузилось». */
 
+let pdLastError = null; // последняя ошибка обращения к хранилищу — для диагностики
 const PD_URL = 'https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net/pd/';
 
 async function pdCall(env, action, body) {
@@ -236,12 +237,17 @@ async function pdCall(env, action, body) {
       body: JSON.stringify(body),
     });
     if (!r.ok) {
-      console.log('pd/' + action + ': HTTP ' + r.status);
+      // текст ответа сохраняем: по нему видно, отказ это по ключу или ошибка бакета
+      const text = (await r.text()).slice(0, 200);
+      console.log('pd/' + action + ': HTTP ' + r.status + ' ' + text);
+      pdLastError = 'HTTP ' + r.status + ': ' + text;
       return null;
     }
+    pdLastError = null;
     return await r.json();
   } catch (e) {
     console.log('pd/' + action + ': ' + e.message);
+    pdLastError = e.message;
     return null;
   }
 }
@@ -2083,6 +2089,22 @@ async function handleDiag(env) {
   }
   const sched = await loadSchedule(env);
 
+  /* Проверка хранилища в России: пишем пробную запись, читаем обратно, стираем.
+     Так видно не «ключ задан», а что цепочка работает целиком. */
+  let pdCheck = 'не проверялось';
+  if (env.PD_KEY) {
+    const t0 = Date.now();
+    const testId = 999999;
+    const put = await pdCall(env, 'put', { id: testId, name: 'проверка', phone: '000', note: '' });
+    const got = await pdLoad(env, testId);
+    await pdDelete(env, testId);
+    pdCheck = !put
+      ? 'запись не прошла: ' + (pdLastError || 'функция не ответила')
+      : got && got.name === 'проверка'
+        ? 'работает, ' + (Date.now() - t0) + ' мс'
+        : 'записалось, но не читается обратно';
+  }
+
   // состояние вебхука клиентского бота: молчащий бот чаще всего означает,
   // что Telegram не может достучаться, а не ошибку в коде
   let clientHook = null;
@@ -2133,6 +2155,7 @@ async function handleDiag(env) {
   }
 
   return {
+    хранилище_в_России: pdCheck,
     клиентский_бот: clientBot,
     вебхук_клиентского: clientHook,
     диалоги_в_максе: maxChats,
