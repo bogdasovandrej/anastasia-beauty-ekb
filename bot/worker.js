@@ -2304,29 +2304,35 @@ async function handleDiag(env) {
     }
   }
 
-  // с кем бот в МАКСе уже переписывался — по этому видно, заходила ли мастер
-  let maxChats = 'не проверялось';
-  try {
-    const r = await maxApi(env, '/chats', null, '?count=20');
-    maxChats = (r.chats || []).map(function (c) {
-      return {
-        id: c.chat_id,
-        тип: c.type,
-        участников: c.participants_count,
-        последнее_сообщение: c.last_event_time
-          ? new Date(c.last_event_time + EKB * 60000).toISOString().slice(0, 16).replace('T', ' ')
-          : null,
-      };
-    });
-  } catch (e) {
-    maxChats = 'ошибка: ' + e.message;
+  /* Чат мастера в МАКСе спрашиваем напрямую по его номеру, а не через список
+     диалогов: список возвращает пустоту даже когда переписка есть, и по нему
+     нельзя судить, дойдёт уведомление или нет. */
+  let maxChatCheck = 'не проверялось';
+  const savedChat = await getSetting(env, 'max_chat');
+  if (env.MAX_TOKEN && savedChat) {
+    try {
+      const r = await fetch(MAX_API + '/chats/' + encodeURIComponent(savedChat), {
+        headers: { Authorization: env.MAX_TOKEN },
+      });
+      const t = await r.text();
+      maxChatCheck = r.ok ? 'чат доступен, уведомления дойдут' : 'HTTP ' + r.status + ': ' + t.slice(0, 120);
+    } catch (e) {
+      maxChatCheck = 'ошибка: ' + e.message;
+    }
+  } else if (!savedChat) {
+    maxChatCheck = 'номер чата не сохранён';
   }
 
+  /* Список диалогов /chats у МАКСа убран намеренно: он возвращает пустоту
+     даже когда переписка с ботом есть, и по нему я однажды сделал неверный
+     вывод, что мастер не заходила в бота. Проверка выше спрашивает конкретный
+     чат по номеру и отвечает на настоящий вопрос — дойдёт ли уведомление. */
+
   return {
+    чат_мастера_в_максе: maxChatCheck,
     хранилище_в_России: pdCheck,
     клиентский_бот: clientBot,
     вебхук_клиентского: clientHook,
-    диалоги_в_максе: maxChats,
     секреты: {
       TG_TOKEN: !!env.TG_TOKEN,
       TG_ADMIN_ID: !!env.TG_ADMIN_ID,
