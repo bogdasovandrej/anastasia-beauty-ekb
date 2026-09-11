@@ -1110,11 +1110,43 @@ async function handleClientBot(env, update) {
 async function sendReminders(env, утро) {
   const now = nowEkb();
 
+  /* Напоминание за сутки. Смотрим завтрашний день и шлём тем, кому ещё
+     не отправляли. Час выбран удобный — не раньше десяти утра, чтобы
+     не будить человека сообщением о визите. Отдельный признак reminded_day,
+     иначе суточное и трёхчасовое напоминания гасили бы друг друга. */
+  const tomorrow = new Date(Date.now() + EKB * 60000 + 86400000).toISOString().slice(0, 10);
+  if (now.min >= 600 && now.min < 660) {
+    const d = await env.DB.prepare(
+      'SELECT id, day, start_min, end_min, service, client_chat, client_kind FROM bookings ' +
+        "WHERE day = ? AND status != 'cancelled' AND reminded_day = 0 AND client_chat IS NOT NULL",
+    )
+      .bind(tomorrow)
+      .all();
+    for (const b of d.results) {
+      const text =
+        'Напоминаем о записи 🌸' + NL + NL +
+        '📅 завтра, ' + ruDay(b.day) + NL +
+        '🕐 ' + hhmm(b.start_min) + ' — ' + hhmm(b.end_min) + NL +
+        '💅 ' + b.service + NL + NL +
+        'Студия «Море красок», ул. Донбасская, 4' + NL +
+        'Если планы изменились, позвоните: ' + PHONE;
+      try {
+        if (b.client_kind === 'tg' && env.TG_CLIENT_TOKEN) {
+          await tgc(env, 'sendMessage', { chat_id: b.client_chat, text: text });
+        }
+        await env.DB.prepare('UPDATE bookings SET reminded_day = 1 WHERE id = ?').bind(b.id).run();
+      } catch (e) {
+        console.log('Напоминание за сутки ' + b.id + ': ' + e.message);
+      }
+    }
+  }
+
   /* Напоминаем примерно за три часа до визита. Проверка идёт каждые полчаса,
      поэтому берём окно от двух до трёх с половиной часов: сообщение уйдёт
-     ровно один раз и заведомо не позже, чем за два часа до начала. */
+     ровно один раз и заведомо не позже, чем за два часа до начала.
+     Имя из запроса убрано — оно больше не хранится в этой базе. */
   const r = await env.DB.prepare(
-    'SELECT id, day, start_min, end_min, service, name, client_chat, client_kind FROM bookings ' +
+    'SELECT id, day, start_min, end_min, service, client_chat, client_kind FROM bookings ' +
       "WHERE day = ? AND status != 'cancelled' AND reminded = 0 AND client_chat IS NOT NULL " +
       'AND (start_min - ?) BETWEEN 120 AND 210',
   )
@@ -1153,14 +1185,16 @@ async function sendReminders(env, утро) {
   // мастеру — что сегодня; только в утренний запуск
   if (!утро) return { напомнили: r.results.length, записей_сегодня: null };
   const today = await env.DB.prepare(
-    'SELECT start_min, end_min, service, name, phone, note FROM bookings ' +
+    'SELECT id, start_min, end_min, service FROM bookings ' +
       "WHERE day = ? AND status != 'cancelled' ORDER BY start_min",
   )
     .bind(now.day)
     .all();
   if (today.results.length) {
+    // имена приходят из российского хранилища
+    const todayRows = await withPersonal(env, today.results);
     let out = 'Доброе утро! Сегодня, ' + ruDay(now.day) + ':' + NL;
-    for (const b of today.results) {
+    for (const b of todayRows) {
       out +=
         NL +
         hhmm(b.start_min) +
@@ -1202,7 +1236,7 @@ async function planerKey(env) {
 
 async function dayData(env, day) {
   const r = await env.DB.prepare(
-    'SELECT id, start_min, end_min, service, name, phone, note FROM bookings ' +
+    'SELECT id, start_min, end_min, service FROM bookings ' +
       "WHERE day = ? AND status != 'cancelled' ORDER BY start_min",
   )
     .bind(day)
