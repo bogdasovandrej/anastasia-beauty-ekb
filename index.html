@@ -410,9 +410,9 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
         <a href="#services" class="btn btn-ghost">Услуги и цены</a>
       </div>
       <div class="hero-stats">
-        <div class="stat"><b data-count="8">0</b><span>услуг</span></div>
+        <div class="stat"><b data-count="8">8</b><span>услуг</span></div>
         <div class="stat"><b>8—19</b><span>часы работы</span></div>
-        <div class="stat"><b class="grad-text" data-count="300" data-prefix="от " data-suffix="₽">0</b><span>цены</span></div>
+        <div class="stat"><b class="grad-text" data-count="300" data-prefix="от " data-suffix="₽">от 300₽</b><span>цены</span></div>
       </div>
     </div>
     <div class="hero-visual rv rv-s" data-par="0.06">
@@ -944,11 +944,12 @@ var ioNum=new IntersectionObserver(function(es){
     if(!e.isIntersecting)return;
     ioNum.unobserve(e.target);
     var el=e.target,to=+el.dataset.count,pre=el.dataset.prefix||'',suf=el.dataset.suffix||'';
-    /* Сразу ставим итоговое число, и только потом запускаем отсчёт поверх него.
-       Если кадры не рисуются — вкладка открыта в фоне, экономия батареи,
-       что угодно — на экране останется правильная цифра, а не ноль. */
-    el.textContent=pre+to+suf;
+    /* Итоговые числа стоят прямо в разметке, а обнуляем мы их только здесь —
+       перед самым отсчётом. Наблюдатель за появлением не срабатывает
+       в фоновой вкладке, и при обратном порядке на экране навсегда
+       оставался бы ноль. Так цифры верны даже без единой строчки кода. */
     if(RM)return;
+    el.textContent=pre+'0'+suf;
     var t0=performance.now(),dur=1100;
     requestAnimationFrame(function tick(t){
       var k=Math.min(1,(t-t0)/dur),v=Math.round(to*(1-Math.pow(1-k,3)));
