@@ -213,6 +213,77 @@ async function applyTap(env, data) {
   return { toast: '', key: null };
 }
 
+// ---------- персональные данные: хранятся в России ----------
+
+/* Имя, телефон и пометки лежат не здесь, а в закрытом бакете Яндекса.
+   Закон требует, чтобы база с персональными данными россиян физически
+   находилась в России, а Cloudflare — это не Россия. Тут остаются только
+   день, время и услуга: по ним человека не опознать.
+
+   Обращение идёт через российский шлюз и закрыто общим секретом PD_KEY.
+   Если хранилище недоступно, запись всё равно состоится — время займётся,
+   мастер получит уведомление, просто без имени. Терять запись из-за
+   недоступности хранилища хуже, чем показать «имя не загрузилось». */
+
+const PD_URL = 'https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net/pd/';
+
+async function pdCall(env, action, body) {
+  if (!env.PD_KEY) return null;
+  try {
+    const r = await fetch(PD_URL + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Pd-Key': env.PD_KEY },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      console.log('pd/' + action + ': HTTP ' + r.status);
+      return null;
+    }
+    return await r.json();
+  } catch (e) {
+    console.log('pd/' + action + ': ' + e.message);
+    return null;
+  }
+}
+
+async function pdSave(env, id, name, phone, note) {
+  await pdCall(env, 'put', { id: id, name: name, phone: phone, note: note || '' });
+}
+
+async function pdLoad(env, id) {
+  const r = await pdCall(env, 'get', { id: id });
+  return (r && r.data) || null;
+}
+
+/* Имена сразу для нескольких записей — планеру и списку нужен весь день,
+   а не по одной записи за раз. */
+async function pdLoadMany(env, ids) {
+  if (!ids.length) return {};
+  const r = await pdCall(env, 'many', { ids: ids });
+  return (r && r.data) || {};
+}
+
+async function pdDelete(env, id) {
+  await pdCall(env, 'del', { id: id });
+}
+
+/* Подставить имя и телефон в список записей, пришедший из базы.
+   Если хранилище не ответило — ставим понятную заглушку, а не пустоту. */
+async function withPersonal(env, rows) {
+  const ids = rows.map(function (r) {
+    return r.id;
+  });
+  const pd = await pdLoadMany(env, ids);
+  return rows.map(function (r) {
+    const p = pd[r.id];
+    return Object.assign({}, r, {
+      name: (p && p.name) || 'имя не загрузилось',
+      phone: (p && p.phone) || '',
+      note: (p && p.note) || '',
+    });
+  });
+}
+
 // ---------- запись по времени ----------
 
 /* Длительности услуг в минутах. Это то, на сколько занимается кресло,
@@ -327,16 +398,16 @@ async function createBooking(env, body) {
   }
 
   const res = await env.DB.prepare(
-    'INSERT INTO bookings (day, start_min, end_min, service, name, phone, status, created_at, client_chat, client_kind) ' +
-      'VALUES (?,?,?,?,?,?,?,?,?,?)',
+    /* Имя и телефон сюда больше не пишутся — они уходят в российское
+       хранилище сразу после того, как станет известен номер записи. */
+    'INSERT INTO bookings (day, start_min, end_min, service, status, created_at, client_chat, client_kind) ' +
+      'VALUES (?,?,?,?,?,?,?,?)',
   )
     .bind(
       day,
       start,
       start + dur,
       service,
-      name,
-      phone,
       'new',
       new Date().toISOString(),
       body.clientChat ? String(body.clientChat) : null,
@@ -345,6 +416,8 @@ async function createBooking(env, body) {
     .run();
 
   const id = res.meta.last_row_id;
+  // имя и телефон — в российское хранилище, отдельным обращением
+  await pdSave(env, id, name, phone, '');
   // если запись завела сама мастер — уведомлять её о ней же незачем
   if (!body.silent) {
     await notifyMaster(env, {
@@ -483,15 +556,17 @@ async function notifyMaster(env, b) {
 async function upcomingText(env) {
   const now = nowEkb();
   const r = await env.DB.prepare(
-    'SELECT id, day, start_min, end_min, service, name, phone, note FROM bookings ' +
+    'SELECT id, day, start_min, end_min, service FROM bookings ' +
       "WHERE day >= ? AND status != 'cancelled' ORDER BY day, start_min LIMIT 20",
   )
     .bind(now.day)
     .all();
   if (!r.results.length) return 'Записей пока нет.';
+  // имена и телефоны лежат в России — подтягиваем их отдельным обращением
+  const rows = await withPersonal(env, r.results);
   let out = 'Ближайшие записи:\n';
   let lastDay = '';
-  for (const b of r.results) {
+  for (const b of rows) {
     if (b.day !== lastDay) {
       const p = b.day.split('-');
       const d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
@@ -522,10 +597,11 @@ async function upcomingText(env) {
 просто так — в общий блокнот. Никаких команд запоминать не нужно. */
 
 async function addNoteToBooking(env, id, text) {
-  const b = await env.DB.prepare('SELECT note FROM bookings WHERE id = ?').bind(id).first();
+  // пометка живёт рядом с именем и телефоном — в российском хранилище
+  const b = await pdLoad(env, id);
   if (!b) return null;
   const note = (b.note ? b.note + '\n' : '') + text;
-  await env.DB.prepare('UPDATE bookings SET note = ? WHERE id = ?').bind(note, id).run();
+  await pdSave(env, id, b.name || '', b.phone || '', note);
   return note;
 }
 
@@ -565,10 +641,14 @@ async function bookingByTgMessage(env, msgId) {
 }
 
 async function cancelBooking(env, id) {
-  const b = await env.DB.prepare('SELECT * FROM bookings WHERE id = ?').bind(id).first();
+  const b = await env.DB.prepare('SELECT id FROM bookings WHERE id = ?').bind(id).first();
   if (!b) return 'Запись не найдена';
+  const p = await pdLoad(env, id);
   await env.DB.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").bind(id).run();
-  return 'Запись отменена, время снова свободно.\nПозвоните клиенту: ' + b.phone;
+  return (
+    'Запись отменена, время снова свободно.' +
+    (p && p.phone ? '\nПозвоните клиенту: ' + p.phone : '')
+  );
 }
 
 // ---------- меню, состояние, запись мастером ----------
@@ -758,11 +838,13 @@ async function calendarIcs(env) {
   const now = nowEkb();
   const from = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
   const r = await env.DB.prepare(
-    'SELECT id, day, start_min, end_min, service, name, phone, note FROM bookings ' +
+    'SELECT id, day, start_min, end_min, service FROM bookings ' +
       "WHERE day >= ? AND status != 'cancelled' ORDER BY day, start_min",
   )
     .bind(from)
     .all();
+  // имена для календаря тоже приходят из России
+  const rows = await withPersonal(env, r.results);
 
   const stamp = new Date()
     .toISOString()
@@ -779,7 +861,7 @@ async function calendarIcs(env) {
     'REFRESH-INTERVAL;VALUE=DURATION:PT15M',
     'X-PUBLISHED-TTL:PT15M',
   ];
-  for (const b of r.results) {
+  for (const b of rows) {
     lines.push('BEGIN:VEVENT');
     lines.push('UID:booking-' + b.id + '@more-krasok.ru');
     lines.push('DTSTAMP:' + stamp);
@@ -1132,7 +1214,7 @@ async function dayData(env, day) {
     услуги: SERVICE_NAMES.map(function (n) {
       return { имя: n, мин: DURATION[n] };
     }),
-    записи: r.results.map(function (b) {
+    записи: (await withPersonal(env, r.results)).map(function (b) {
       return {
         id: b.id,
         начало: b.start_min,
@@ -2095,6 +2177,11 @@ export default {
     /* Записи с именами и телефонами храним полгода: этого хватает, чтобы
        узнать постоянного клиента, и телефоны не копятся годами. Заметки — год. */
     const cut = new Date(Date.now() - 182 * 86400000).toISOString().slice(0, 10);
+    /* Сначала стираем имена и телефоны в российском хранилище, потом сами
+       записи. Обратный порядок оставил бы файлы с телефонами без владельца:
+       записи бы исчезли, а данные остались лежать. */
+    const old = await env.DB.prepare('SELECT id FROM bookings WHERE day < ?').bind(cut).all();
+    for (const row of old.results) await pdDelete(env, row.id);
     const cutNotes = new Date(Date.now() - 365 * 86400000).toISOString();
     const r = await env.DB.batch([
       env.DB.prepare('DELETE FROM bookings WHERE day < ?').bind(cut),
