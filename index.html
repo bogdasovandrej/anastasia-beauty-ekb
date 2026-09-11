@@ -944,7 +944,11 @@ var ioNum=new IntersectionObserver(function(es){
     if(!e.isIntersecting)return;
     ioNum.unobserve(e.target);
     var el=e.target,to=+el.dataset.count,pre=el.dataset.prefix||'',suf=el.dataset.suffix||'';
-    if(RM){el.textContent=pre+to+suf;return;}
+    /* Сразу ставим итоговое число, и только потом запускаем отсчёт поверх него.
+       Если кадры не рисуются — вкладка открыта в фоне, экономия батареи,
+       что угодно — на экране останется правильная цифра, а не ноль. */
+    el.textContent=pre+to+suf;
+    if(RM)return;
     var t0=performance.now(),dur=1100;
     requestAnimationFrame(function tick(t){
       var k=Math.min(1,(t-t0)/dur),v=Math.round(to*(1-Math.pow(1-k,3)));
