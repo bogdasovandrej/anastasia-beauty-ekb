@@ -950,6 +950,174 @@ async function clientStart(env, chat) {
   });
 }
 
+// ---------- клиентский бот в МАКСе ----------
+
+/* Второй бот МАКСа — для клиентов. Логика та же, что в телеграмном,
+   но МАКС не умеет кнопку «поделиться контактом», поэтому телефон человек
+   пишет текстом. Это единственное расхождение между ботами. */
+
+async function maxc(env, path, payload, query) {
+  const r = await fetch(MAX_API + path + (query || ''), {
+    method: payload ? 'POST' : 'GET',
+    headers: payload
+      ? { Authorization: env.MAX_CLIENT_TOKEN, 'Content-Type': 'application/json' }
+      : { Authorization: env.MAX_CLIENT_TOKEN },
+    body: payload ? JSON.stringify(payload) : undefined,
+  });
+  const text = await r.text();
+  if (!r.ok) console.log('maxc ' + path + ': ' + r.status + ' ' + text.slice(0, 150));
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return { raw: text };
+  }
+}
+
+async function maxcSend(env, chatId, text, rows) {
+  const body = { text: text };
+  if (rows) body.attachments = maxKeyboard(rows);
+  return maxc(env, '/messages', body, '?chat_id=' + encodeURIComponent(chatId));
+}
+
+function maxServiceButtons() {
+  return SERVICE_NAMES.map(function (n, i) {
+    return [{ text: n + ' · ' + DURATION[n] + ' мин', data: 'cs:' + i }];
+  });
+}
+
+async function handleMaxClient(env, update) {
+  const type = update.update_type || '';
+
+  if (type === 'message_created' && update.message) {
+    const m = update.message;
+    const chat = m.recipient && m.recipient.chat_id;
+    const text = ((m.body && m.body.text) || '').trim();
+    if (!chat) return;
+
+    const st = await cstate(env, chat);
+    // ждём телефон — значит человек уже выбрал услугу, день и время
+    if (st.start && st.awaitPhone) {
+      const digits = (text.match(/\d/g) || []).length;
+      if (digits < 10) {
+        await maxcSend(env, chat, 'Не похоже на номер. Напишите телефон, например: 8 900 123-45-67');
+        return;
+      }
+      const res = await createBooking(env, {
+        name: st.name || 'Клиент',
+        phone: text,
+        service: st.service,
+        day: st.day,
+        start: st.start,
+        clientChat: chat,
+        clientKind: 'max',
+      });
+      await setCstate(env, chat, {});
+      await maxcSend(
+        env,
+        chat,
+        res.ok
+          ? '✅ Вы записаны!' + NL + NL +
+            '📅 ' + ruDay(st.day) + NL +
+            '🕐 ' + res.start + ' — ' + res.end + NL +
+            '💅 ' + st.service + NL + NL +
+            'Адрес: ул. Донбасская, 4' + NL +
+            'Напомним за сутки. Если планы изменятся — позвоните: ' + PHONE
+          : '❌ ' + res.error,
+      );
+      return;
+    }
+
+    // имя перед телефоном
+    if (st.start && !st.name) {
+      st.name = text.slice(0, 80) || 'Клиент';
+      st.awaitPhone = true;
+      await setCstate(env, chat, st);
+      await maxcSend(env, chat, 'Теперь напишите номер телефона.');
+      return;
+    }
+
+    await setCstate(env, chat, {});
+    await maxcSend(
+      env,
+      chat,
+      'Студия красоты «Море красок»' + NL +
+        'Екатеринбург, Уралмаш, ул. Донбасская, 4' + NL + NL +
+        'Записаться можно прямо здесь — выберите услугу:',
+      maxServiceButtons(),
+    );
+    return;
+  }
+
+  if (type === 'message_callback' && update.callback) {
+    const cbk = update.callback;
+    const chat = update.message && update.message.recipient && update.message.recipient.chat_id;
+    const data = cbk.payload || '';
+    const st = await cstate(env, chat);
+
+    const answer = async function (text, rows) {
+      const r = await maxc(
+        env,
+        '/answers',
+        { message: { text: text, attachments: rows ? maxKeyboard(rows) : [] } },
+        '?callback_id=' + encodeURIComponent(cbk.callback_id),
+      );
+      if (r && r.code && chat) await maxcSend(env, chat, text, rows);
+    };
+
+    if (data === 'cb:svc') {
+      await setCstate(env, chat, {});
+      await answer('Выберите услугу:', maxServiceButtons());
+      return;
+    }
+
+    if (data.startsWith('cs:')) {
+      st.service = SERVICE_NAMES[parseInt(data.slice(3), 10)];
+      const days = await clientDays(env, st.service, 8);
+      await setCstate(env, chat, st);
+      await answer(
+        '💅 ' + st.service + ' · ' + DURATION[st.service] + ' мин' + NL + NL +
+          (days.length ? 'Выберите день:' : 'Свободных дней пока нет. Позвоните: ' + PHONE),
+        days
+          .map(function (d) {
+            return [{ text: ruDay(d.day) + ' · свободно ' + d.free, data: 'cd:' + d.day }];
+          })
+          .concat([[{ text: '← Другая услуга', data: 'cb:svc' }]]),
+      );
+      return;
+    }
+
+    if (data.startsWith('cd:')) {
+      st.day = data.slice(3);
+      await setCstate(env, chat, st);
+      const f = await freeSlots(env, st.day, st.service);
+      const rows = [];
+      const list = f.slots || [];
+      for (let i = 0; i < list.length; i += 3) {
+        rows.push(
+          list.slice(i, i + 3).map(function (s) {
+            return { text: s.start, data: 'ct:' + s.min };
+          }),
+        );
+      }
+      rows.push([{ text: '← Другой день', data: 'cs:' + SERVICE_NAMES.indexOf(st.service) }]);
+      await answer('💅 ' + st.service + NL + '📅 ' + ruDay(st.day) + NL + NL + 'Выберите время:', rows);
+      return;
+    }
+
+    if (data.startsWith('ct:')) {
+      st.start = parseInt(data.slice(3), 10);
+      st.name = null;
+      st.awaitPhone = false;
+      await setCstate(env, chat, st);
+      await answer(
+        '💅 ' + st.service + NL + '📅 ' + ruDay(st.day) + NL + '🕐 ' + hhmm(st.start) + NL + NL +
+          'Как вас зовут? Напишите имя одним сообщением.',
+      );
+      return;
+    }
+  }
+}
+
 async function handleClientBot(env, update) {
   const msg = update.message;
   const cb = update.callback_query;
@@ -2204,8 +2372,14 @@ async function handleSetup(env, url) {
     out.telegram_клиентский = await r.json();
   }
   if (env.MAX_TOKEN) {
-    out.max = await maxApi(env, '/subscriptions', {
+    out.макс_мастера = await maxApi(env, '/subscriptions', {
       url: base + '/max',
+      update_types: ['message_created', 'message_callback'],
+    });
+  }
+  if (env.MAX_CLIENT_TOKEN) {
+    out.макс_клиентский = await maxc(env, '/subscriptions', {
+      url: base + '/maxc',
       update_types: ['message_created', 'message_callback'],
     });
   }
@@ -2415,6 +2589,14 @@ export default {
         await handleTelegram(env, body);
         return new Response('ok');
       }
+      if (path === '/maxc' && request.method === 'POST') {
+        const body = await request.json().catch(function () {
+          return {};
+        });
+        if (env.MAX_CLIENT_TOKEN) await handleMaxClient(env, body);
+        return new Response('ok');
+      }
+
       if (path === '/tgc' && request.method === 'POST') {
         const body = await request.json().catch(function () {
           return {};
