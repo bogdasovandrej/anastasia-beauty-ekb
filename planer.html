@@ -220,7 +220,13 @@ function render(){
   else wd.textContent='';
   if(cached){
     var sel=document.getElementById('svc');
-    sel.innerHTML=cached.услуги.map(function(x){return '<option value="'+x.имя+'">'+x.имя+' · '+x.мин+' мин</option>'}).join('');
+    // услуги сгруппированы по категориям — в прайсе их 45, плоским списком не найти
+    var groups={},order=[];
+    cached.услуги.forEach(function(x){var g=x.группа||'Услуги';if(!groups[g]){groups[g]=[];order.push(g)}groups[g].push(x)});
+    sel.innerHTML=order.map(function(g){
+      return '<optgroup label="'+g+'">'+groups[g].map(function(x){
+        return '<option value="'+x.имя+'">'+x.имя+' · '+x.мин+' мин</option>'}).join('')+'</optgroup>';
+    }).join('');
   }
   drawStrip();
   var g=document.getElementById('grid');

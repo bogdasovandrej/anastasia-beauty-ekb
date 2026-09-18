@@ -295,16 +295,60 @@ async function withPersonal(env, rows) {
 /* Длительности услуг в минутах. Это то, на сколько занимается кресло,
 а не «сколько идёт процедура» — на них строится сетка свободных окон.
 Значения взяты из описаний услуг на сайте, мастеру их стоит подтвердить. */
-const DURATION = {
-  Маникюр: 120,
-  Педикюр: 120,
-  Окрашивание: 120,
-  Химзавивка: 120,
-  'Женская стрижка': 30,
-  'Мужская стрижка': 30,
-  'Детская стрижка': 30,
-  Брови: 30,
-};
+// >>> CATALOG — генерируется из prices.json скриптом update-prices.py, руками не править
+const CATALOG = [{"name":"Стрижки","services":[{"n":"Стрижка женская","m":30,"p":600},{"n":"Стрижка женская (густые волосы)","m":60,"p":800},{"n":"Стрижка пенсионерам","m":30,"p":400},{"n":"Стрижка мужская (под насадку)","m":30,"p":300},{"n":"Стрижка мужская","m":30,"p":450},{"n":"Стрижка детская","m":30,"p":400},{"n":"Подравнивание / чёлка","m":30,"p":250}]},{"name":"Окрашивание","services":[{"n":"Окрашивание / тонирование в один тон до 15 см","m":90,"p":2000},{"n":"Окрашивание / тонирование в один тон до 30 см","m":90,"p":2500},{"n":"Окрашивание / тонирование в один тон до 45 см","m":120,"p":3000},{"n":"Окрашивание корней","m":90,"p":1700},{"n":"Окрашивание прядей (1 прядь)","m":90,"p":350}]},{"name":"Мелирование","services":[{"n":"Мелирование корней","m":120,"p":2500},{"n":"Мелирование до 15 см","m":120,"p":2500},{"n":"Мелирование до 30 см","m":120,"p":3000},{"n":"Мелирование до 45 см","m":180,"p":4000}]},{"name":"Химическая завивка","services":[{"n":"Химическая завивка до 15 см","m":120,"p":3000},{"n":"Химическая завивка до 30 см","m":180,"p":3500},{"n":"Химическая завивка до 45 см","m":180,"p":null}]},{"name":"Комплексы","services":[{"n":"Стрижка + окрашивание в один тон до 15 см","m":120,"p":2600},{"n":"Стрижка + окрашивание в один тон до 30 см","m":120,"p":3100},{"n":"Стрижка + окрашивание в один тон до 45 см","m":150,"p":3600},{"n":"Стрижка + мелирование до 15 см","m":150,"p":3100},{"n":"Стрижка + мелирование до 30 см","m":150,"p":3600},{"n":"Стрижка + мелирование до 45 см","m":210,"p":4600},{"n":"Стрижка + мелирование + тонирование до 15 см","m":180,"p":5000},{"n":"Стрижка + мелирование + тонирование до 30 см","m":180,"p":6500},{"n":"Стрижка + мелирование + тонирование до 45 см","m":240,"p":7500},{"n":"Мелирование + окрашивание до 15 см","m":150,"p":4500},{"n":"Мелирование + окрашивание до 30 см","m":150,"p":6000},{"n":"Мелирование + окрашивание до 45 см","m":240,"p":7000}]},{"name":"Маникюр","services":[{"n":"Маникюр без покрытия (комбинированный)","m":30,"p":1000},{"n":"Маникюр с покрытием гель-лак","m":120,"p":1800},{"n":"Маникюр с покрытием гель-лак + наращивание","m":180,"p":2800},{"n":"Японский маникюр","m":90,"p":1600},{"n":"Снятие чужого покрытия","m":30,"p":200}]},{"name":"Педикюр","services":[{"n":"Педикюр комбинированный (стопы и пальчики)","m":60,"p":1400},{"n":"Педикюр + гель-лак (без обработки стоп)","m":90,"p":1800},{"n":"Педикюр комбинированный (полная обработка)","m":120,"p":2500},{"n":"Подстричь ногти на ногах","m":15,"p":100}]},{"name":"Брови","services":[{"n":"Окрашивание бровей","m":30,"p":300},{"n":"Коррекция бровей","m":30,"p":300},{"n":"Окрашивание + коррекция бровей","m":60,"p":600}]}];
+// <<< CATALOG
+
+/* Плоские представления каталога. Номер услуги в SERVICE_NAMES — это то,
+   что уходит в кнопки ботов: название в кнопку целиком не влезает. */
+const DURATION = {};
+const PRICE = {};
+const SERVICE_NAMES = [];
+const SERVICE_CAT = [];
+CATALOG.forEach(function (c, k) {
+  c.services.forEach(function (x) {
+    DURATION[x.n] = x.m;
+    PRICE[x.n] = x.p;
+    SERVICE_NAMES.push(x.n);
+    SERVICE_CAT.push(k);
+  });
+});
+
+function priceText(p) {
+  return p == null ? 'цена по запросу' : p + ' ₽';
+}
+function durText(m) {
+  if (m < 60) return m + ' мин';
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return h + ' ч' + (r ? ' ' + r + ' мин' : '');
+}
+
+/* Кнопки выбора услуги — в два шага: категория, потом услуга.
+   В прайсе 45 позиций, одним списком их никто не пролистает.
+   Нейтральный формат {text, data} — ниже он переводится в формат
+   Telegram или МАКСа. */
+function categoryRows(prefix) {
+  return CATALOG.map(function (c, k) {
+    return [{ text: c.name, data: prefix + k }];
+  });
+}
+function serviceRows(k, prefix, backData) {
+  const rows = [];
+  SERVICE_NAMES.forEach(function (n, i) {
+    if (SERVICE_CAT[i] !== k) return;
+    rows.push([{ text: n + ' · ' + priceText(PRICE[n]) + ' · ' + durText(DURATION[n]), data: prefix + i }]);
+  });
+  rows.push([{ text: '← Другая категория', data: backData }]);
+  return rows;
+}
+function asTg(rows) {
+  return rows.map(function (r) {
+    return r.map(function (b) {
+      return { text: b.text, callback_data: b.data };
+    });
+  });
+}
 const WORK_FROM = 8 * 60; // 8:00 — по просьбе мастера, раньше было 9:00
 const WORK_TO = 19 * 60; // 19:00
 const STEP = 30; // шаг сетки — полчаса
@@ -659,7 +703,6 @@ async function cancelBooking(env, id) {
 
 // ---------- меню, состояние, запись мастером ----------
 
-const SERVICE_NAMES = Object.keys(DURATION);
 
 /* Постоянные кнопки под полем ввода: мастеру не нужно помнить команды
 и что-то печатать — всё делается нажатиями. */
@@ -727,13 +770,7 @@ function bookDayButtons(sched, y, m) {
 }
 
 function serviceButtons() {
-  const rows = [];
-  for (let i = 0; i < SERVICE_NAMES.length; i += 2) {
-    const row = [{ text: SERVICE_NAMES[i], data: 'bs:' + i }];
-    if (SERVICE_NAMES[i + 1]) row.push({ text: SERVICE_NAMES[i + 1], data: 'bs:' + (i + 1) });
-    rows.push(row);
-  }
-  return rows;
+  return categoryRows('bg:');
 }
 
 async function slotButtons(env, day, service) {
@@ -930,9 +967,7 @@ async function clientDays(env, service, limit) {
 }
 
 function clientServiceButtons() {
-  return SERVICE_NAMES.map(function (n, i) {
-    return [{ text: n + ' · ' + DURATION[n] + ' мин', callback_data: 'cs:' + i }];
-  });
+  return asTg(categoryRows('cg:'));
 }
 
 async function clientStart(env, chat) {
@@ -980,9 +1015,7 @@ async function maxcSend(env, chatId, text, rows) {
 }
 
 function maxServiceButtons() {
-  return SERVICE_NAMES.map(function (n, i) {
-    return [{ text: n + ' · ' + DURATION[n] + ' мин', data: 'cs:' + i }];
-  });
+  return categoryRows('cg:');
 }
 
 async function handleMaxClient(env, update) {
@@ -1066,16 +1099,22 @@ async function handleMaxClient(env, update) {
 
     if (data === 'cb:svc') {
       await setCstate(env, chat, {});
-      await answer('Выберите услугу:', maxServiceButtons());
+      await answer('Выберите категорию:', maxServiceButtons());
       return;
     }
 
+    // категория → услуги в ней
+    if (data.startsWith('cg:')) {
+      const k = parseInt(data.slice(3), 10);
+      await answer(CATALOG[k].name + ':', serviceRows(k, 'cs:', 'cb:svc'));
+      return;
+    }
     if (data.startsWith('cs:')) {
       st.service = SERVICE_NAMES[parseInt(data.slice(3), 10)];
       const days = await clientDays(env, st.service, 8);
       await setCstate(env, chat, st);
       await answer(
-        '💅 ' + st.service + ' · ' + DURATION[st.service] + ' мин' + NL + NL +
+        '💅 ' + st.service + ' · ' + durText(DURATION[st.service]) + ' · ' + priceText(PRICE[st.service]) + NL + NL +
           (days.length ? 'Выберите день:' : 'Свободных дней пока нет. Позвоните: ' + PHONE),
         days
           .map(function (d) {
@@ -1177,6 +1216,18 @@ async function handleClientBot(env, update) {
     const data = cb.data || '';
     const st = await cstate(env, chat);
 
+    // категория → услуги в ней
+    if (data.startsWith('cg:')) {
+      const k = parseInt(data.slice(3), 10);
+      await tgc(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      await tgc(env, 'editMessageText', {
+        chat_id: chat,
+        message_id: cb.message.message_id,
+        text: CATALOG[k].name + ':',
+        reply_markup: { inline_keyboard: asTg(serviceRows(k, 'cs:', 'cb:svc')) },
+      });
+      return;
+    }
     if (data.startsWith('cs:')) {
       st.service = SERVICE_NAMES[parseInt(data.slice(3), 10)];
       await setCstate(env, chat, st);
@@ -1189,8 +1240,9 @@ async function handleClientBot(env, update) {
           '💅 ' +
           st.service +
           ' · ' +
-          DURATION[st.service] +
-          ' мин' +
+          durText(DURATION[st.service]) +
+          ' · ' +
+          priceText(PRICE[st.service]) +
           NL +
           NL +
           (days.length ? 'Выберите день:' : 'Свободных дней пока нет. Позвоните: ' + PHONE),
@@ -1212,7 +1264,7 @@ async function handleClientBot(env, update) {
       await tgc(env, 'editMessageText', {
         chat_id: chat,
         message_id: cb.message.message_id,
-        text: 'Выберите услугу:',
+        text: 'Выберите категорию:',
         reply_markup: { inline_keyboard: clientServiceButtons() },
       });
       return;
@@ -1419,8 +1471,8 @@ async function dayData(env, day) {
     day: day,
     подпись: ruDay(day),
     рабочий: await isWorkingDay(env, day),
-    услуги: SERVICE_NAMES.map(function (n) {
-      return { имя: n, мин: DURATION[n] };
+    услуги: SERVICE_NAMES.map(function (n, i) {
+      return { имя: n, мин: DURATION[n], цена: PRICE[n], группа: CATALOG[SERVICE_CAT[i]].name };
     }),
     записи: (await withPersonal(env, r.results)).map(function (b) {
       return {
@@ -1821,6 +1873,20 @@ async function handleTelegram(env, update) {
       });
       return;
     }
+    // категория услуг → список услуг в ней
+    if (data0.startsWith('bg:')) {
+      const k = data0.slice(3);
+      await tg(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      await tg(env, 'editMessageText', {
+        chat_id: chatId,
+        message_id: cb.message.message_id,
+        text: k === 'all' ? 'Какая услуга?' : CATALOG[parseInt(k, 10)].name + ':',
+        reply_markup: tgKeyboard(
+          k === 'all' ? serviceButtons() : serviceRows(parseInt(k, 10), 'bs:', 'bg:all'),
+        ),
+      });
+      return;
+    }
     if (data0.startsWith('bs:')) {
       const st = await getState(env);
       st.service = SERVICE_NAMES[parseInt(data0.slice(3), 10)];
@@ -1837,8 +1903,8 @@ async function handleTelegram(env, update) {
           '\n💅 ' +
           st.service +
           ' · ' +
-          DURATION[st.service] +
-          ' мин\n\n' +
+          durText(DURATION[st.service]) +
+          '\n\n' +
           (sb.count ? 'Во сколько?' : 'Свободного времени в этот день не осталось.'),
         reply_markup: tgKeyboard(
           sb.rows.length ? sb.rows : [[{ text: '← Другой день', data: 'bm:' + st.day.slice(0, 7) }]],
@@ -2062,6 +2128,17 @@ async function handleMax(env, update) {
       return;
     }
 
+    // категория услуг → список услуг в ней
+    if (data.startsWith('bg:')) {
+      const k = data.slice(3);
+      if (k === 'all') {
+        await step('Какая услуга?', serviceButtons());
+      } else {
+        const ki = parseInt(k, 10);
+        await step(CATALOG[ki].name + ':', serviceRows(ki, 'bs:', 'bg:all'));
+      }
+      return;
+    }
     if (data.startsWith('bs:')) {
       const st = await getState(env);
       st.service = SERVICE_NAMES[parseInt(data.slice(3), 10)];
@@ -2075,8 +2152,9 @@ async function handleMax(env, update) {
           '💅 ' +
           st.service +
           ' · ' +
-          DURATION[st.service] +
-          ' мин' +
+          durText(DURATION[st.service]) +
+          ' · ' +
+          priceText(PRICE[st.service]) +
           NL +
           NL +
           (sb.count ? 'Во сколько?' : 'Свободного времени в этот день не осталось.'),

@@ -37,10 +37,36 @@
   "url": "https://more-krasok.ru",
   "telephone": "+79502074302",
   "image": "https://more-krasok.ru/images/hero-portrait.jpg",
-  "address": {"@type": "PostalAddress","streetAddress": "ул. Донбасская, 4","addressLocality": "Екатеринбург","addressRegion": "Свердловская область","postalCode": "620012","addressCountry": "RU"},
-  "geo": {"@type": "GeoCoordinates","latitude": 56.8773,"longitude": 60.6007},
-  "openingHoursSpecification": [{"@type": "OpeningHoursSpecification","dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],"opens": "08:00","closes": "19:00"}],
-  "priceRange": "300–3000 ₽",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "ул. Донбасская, 4",
+    "addressLocality": "Екатеринбург",
+    "addressRegion": "Свердловская область",
+    "postalCode": "620012",
+    "addressCountry": "RU"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 56.8773,
+    "longitude": 60.6007
+  },
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"
+      ],
+      "opens": "08:00",
+      "closes": "19:00"
+    }
+  ],
+  "priceRange": "250–7500 ₽",
   "currenciesAccepted": "RUB",
   "paymentAccepted": "Cash, Card",
   "areaServed": "Екатеринбург",
@@ -48,18 +74,433 @@
     "@type": "OfferCatalog",
     "name": "Услуги студии «Море красок»",
     "itemListElement": [
-      {"@type":"Offer","itemOffered":{"@type":"Service","name":"Маникюр","description":"Покрытие гель-лак, дизайн, уход за ногтями и кутикулой"},"priceSpecification":{"@type":"PriceSpecification","minPrice":1000,"priceCurrency":"RUB"}},
-      {"@type":"Offer","itemOffered":{"@type":"Service","name":"Педикюр","description":"Аппаратный педикюр с покрытием"},"priceSpecification":{"@type":"PriceSpecification","minPrice":1000,"priceCurrency":"RUB"}},
-      {"@type":"Offer","itemOffered":{"@type":"Service","name":"Окрашивание волос","description":"Тонирование, окрашивание корней, мелирование, балаяж"},"priceSpecification":{"@type":"PriceSpecification","minPrice":1500,"priceCurrency":"RUB"}},
-      {"@type":"Offer","itemOffered":{"@type":"Service","name":"Химическая завивка","description":"Биозавивка и классическая"},"priceSpecification":{"@type":"PriceSpecification","minPrice":3000,"priceCurrency":"RUB"}},
-      {"@type":"Offer","itemOffered":{"@type":"Service","name":"Женская стрижка","description":"С учётом формы лица и пожеланий"},"priceSpecification":{"@type":"PriceSpecification","minPrice":600,"priceCurrency":"RUB"}},
-      {"@type":"Offer","itemOffered":{"@type":"Service","name":"Мужская стрижка","description":"Классическая или современная"},"priceSpecification":{"@type":"PriceSpecification","minPrice":300,"priceCurrency":"RUB"}},
-      {"@type":"Offer","itemOffered":{"@type":"Service","name":"Детская стрижка","description":"Комфортно для детей, в спокойной обстановке"},"priceSpecification":{"@type":"PriceSpecification","minPrice":400,"priceCurrency":"RUB"}},
-      {"@type":"Offer","itemOffered":{"@type":"Service","name":"Коррекция и окрашивание бровей","description":"Подбор формы, коррекция, окрашивание"},"priceSpecification":{"@type":"PriceSpecification","minPrice":800,"priceCurrency":"RUB"}}
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка женская",
+          "category": "Стрижки"
+        },
+        "price": 600,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка женская (густые волосы)",
+          "category": "Стрижки"
+        },
+        "price": 800,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка пенсионерам",
+          "category": "Стрижки"
+        },
+        "price": 400,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка мужская (под насадку)",
+          "category": "Стрижки"
+        },
+        "price": 300,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка мужская",
+          "category": "Стрижки"
+        },
+        "price": 450,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка детская",
+          "category": "Стрижки"
+        },
+        "price": 400,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Подравнивание / чёлка",
+          "category": "Стрижки"
+        },
+        "price": 250,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Окрашивание / тонирование в один тон до 15 см",
+          "category": "Окрашивание"
+        },
+        "price": 2000,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Окрашивание / тонирование в один тон до 30 см",
+          "category": "Окрашивание"
+        },
+        "price": 2500,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Окрашивание / тонирование в один тон до 45 см",
+          "category": "Окрашивание"
+        },
+        "price": 3000,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Окрашивание корней",
+          "category": "Окрашивание"
+        },
+        "price": 1700,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Окрашивание прядей (1 прядь)",
+          "category": "Окрашивание"
+        },
+        "price": 350,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Мелирование корней",
+          "category": "Мелирование"
+        },
+        "price": 2500,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Мелирование до 15 см",
+          "category": "Мелирование"
+        },
+        "price": 2500,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Мелирование до 30 см",
+          "category": "Мелирование"
+        },
+        "price": 3000,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Мелирование до 45 см",
+          "category": "Мелирование"
+        },
+        "price": 4000,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Химическая завивка до 15 см",
+          "category": "Химическая завивка"
+        },
+        "price": 3000,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Химическая завивка до 30 см",
+          "category": "Химическая завивка"
+        },
+        "price": 3500,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка + окрашивание в один тон до 15 см",
+          "category": "Комплексы"
+        },
+        "price": 2600,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка + окрашивание в один тон до 30 см",
+          "category": "Комплексы"
+        },
+        "price": 3100,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка + окрашивание в один тон до 45 см",
+          "category": "Комплексы"
+        },
+        "price": 3600,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка + мелирование до 15 см",
+          "category": "Комплексы"
+        },
+        "price": 3100,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка + мелирование до 30 см",
+          "category": "Комплексы"
+        },
+        "price": 3600,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка + мелирование до 45 см",
+          "category": "Комплексы"
+        },
+        "price": 4600,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка + мелирование + тонирование до 15 см",
+          "category": "Комплексы"
+        },
+        "price": 5000,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка + мелирование + тонирование до 30 см",
+          "category": "Комплексы"
+        },
+        "price": 6500,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Стрижка + мелирование + тонирование до 45 см",
+          "category": "Комплексы"
+        },
+        "price": 7500,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Мелирование + окрашивание до 15 см",
+          "category": "Комплексы"
+        },
+        "price": 4500,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Мелирование + окрашивание до 30 см",
+          "category": "Комплексы"
+        },
+        "price": 6000,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Мелирование + окрашивание до 45 см",
+          "category": "Комплексы"
+        },
+        "price": 7000,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Маникюр без покрытия (комбинированный)",
+          "category": "Маникюр"
+        },
+        "price": 1000,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Маникюр с покрытием гель-лак",
+          "category": "Маникюр"
+        },
+        "price": 1800,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Маникюр с покрытием гель-лак + наращивание",
+          "category": "Маникюр"
+        },
+        "price": 2800,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Японский маникюр",
+          "category": "Маникюр"
+        },
+        "price": 1600,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Снятие чужого покрытия",
+          "category": "Маникюр"
+        },
+        "price": 200,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Педикюр комбинированный (стопы и пальчики)",
+          "category": "Педикюр"
+        },
+        "price": 1400,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Педикюр + гель-лак (без обработки стоп)",
+          "category": "Педикюр"
+        },
+        "price": 1800,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Педикюр комбинированный (полная обработка)",
+          "category": "Педикюр"
+        },
+        "price": 2500,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Подстричь ногти на ногах",
+          "category": "Педикюр"
+        },
+        "price": 100,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Окрашивание бровей",
+          "category": "Брови"
+        },
+        "price": 300,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Коррекция бровей",
+          "category": "Брови"
+        },
+        "price": 300,
+        "priceCurrency": "RUB"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Окрашивание + коррекция бровей",
+          "category": "Брови"
+        },
+        "price": 600,
+        "priceCurrency": "RUB"
+      }
     ]
   },
   "hasMap": "https://yandex.ru/maps/?text=Екатеринбург, ул. Донбасская, 4",
-  "sameAs": ["https://t.me/Nastasiya0619","https://wa.me/79502074302"]
+  "sameAs": [
+    "https://t.me/Nastasiya0619",
+    "https://wa.me/79502074302"
+  ]
 }
 </script>
 
@@ -378,6 +819,21 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
   .dock{display:none}
 }
 @media(max-width:899px){.nav-menu{display:none}}
+.pricelist{margin-top:clamp(36px,5vw,56px)}
+.pl-title{font-family:var(--font-d);font-size:clamp(20px,2.6vw,26px);font-weight:600;margin-bottom:6px}
+.pl-note{color:var(--ink-2);font-size:14px;margin-bottom:18px}
+.pl-cat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);margin-bottom:10px;overflow:hidden}
+.pl-cat summary{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;
+font-weight:700;font-size:15.5px;list-style:none}
+.pl-cat summary::-webkit-details-marker{display:none}
+.pl-cat summary span{color:var(--rose-deep);font-weight:600;font-size:14px;white-space:nowrap}
+.pl-cat summary::after{content:'+';font-size:20px;color:var(--ink-3);margin-left:10px;transition:transform .3s var(--ease)}
+.pl-cat[open] summary::after{transform:rotate(45deg)}
+.pl-table{width:100%;border-collapse:collapse;font-size:14px}
+.pl-table td{padding:11px 20px;border-top:1px solid var(--line);vertical-align:top}
+.pl-table td.t{color:var(--ink-3);white-space:nowrap;text-align:right;width:1%}
+.pl-table td.p{font-weight:700;white-space:nowrap;text-align:right;width:1%}
+@media(max-width:560px){.pl-table td{padding:10px 14px}.pl-table td.t{display:none}}
 </style>
 </head>
 <body>
@@ -447,55 +903,138 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
       <p class="sub">Стоимость окрашивания и завивки зависит от длины и густоты волос — точную сумму скажу до начала работы.</p>
     </div>
     <div class="bento" id="bento">
+<!-- >>> CARDS из prices.json -->
       <div class="card rv" style="--d:0.00s">
         <a class="go" href="manikyur.html" aria-label="Подробнее: Маникюр">↗</a>
         <div class="shot"><img src="images/svc-manicure.svg" alt="Маникюр — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
-        <div class="body"><h3><a href="manikyur.html">Маникюр</a></h3><p class="desc">Без покрытия — 1000 ₽, с гель-лаком — 1800 ₽, наращивание с покрытием — 2800 ₽.</p>
-        <div class="meta"><span class="price">от 1000₽</span><span class="dur">⏱ 2 часа</span></div></div>
+        <div class="body"><h3><a href="manikyur.html">Маникюр</a></h3><p class="desc">Комбинированный и японский маникюр, покрытие гель-лак, наращивание.</p>
+        <div class="meta"><span class="price">от 1000₽</span><span class="dur">⏱ 30 мин – 3 ч</span></div></div>
       </div>
       <div class="card rv" style="--d:0.08s">
         <a class="go" href="pedikyur.html" aria-label="Подробнее: Педикюр">↗</a>
         <div class="shot"><img src="images/svc-pedicure.svg" alt="Педикюр — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
-        <div class="body"><h3><a href="pedikyur.html">Педикюр</a></h3><p class="desc">Без покрытия — 1000 ₽, с покрытием — 1600 ₽, обработка стоп — 1400 ₽.</p>
-        <div class="meta"><span class="price">от 1000₽</span><span class="dur">⏱ 2 часа</span></div></div>
+        <div class="body"><h3><a href="pedikyur.html">Педикюр</a></h3><p class="desc">Комбинированный педикюр, покрытие гель-лак, полная обработка стоп.</p>
+        <div class="meta"><span class="price">от 1400₽</span><span class="dur">⏱ 1–2 ч</span></div></div>
       </div>
       <div class="card rv" style="--d:0.16s">
         <a class="go" href="okrashivanie-volos.html" aria-label="Подробнее: Окрашивание">↗</a>
         <div class="shot"><img src="images/svc-coloring.svg" alt="Окрашивание — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
-        <div class="body"><h3><a href="okrashivanie-volos.html">Окрашивание</a></h3><p class="desc">Корни — 1500 ₽, в один тон и тонирование — от 2000 ₽, осветление — 2000 ₽, мелирование — от 2500 ₽.</p>
-        <div class="meta"><span class="price">от 1500₽</span><span class="dur">⏱ 2 часа</span></div></div>
+        <div class="body"><h3><a href="okrashivanie-volos.html">Окрашивание</a></h3><p class="desc">В один тон и тонирование, корни, мелирование, комплексы со стрижкой.</p>
+        <div class="meta"><span class="price">от 1700₽</span><span class="dur">⏱ 1,5–4 ч</span></div></div>
       </div>
       <div class="card rv" style="--d:0.24s">
         <a class="go" href="himicheskaya-zavivka.html" aria-label="Подробнее: Химзавивка">↗</a>
         <div class="shot"><img src="images/svc-perm.svg" alt="Химзавивка — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
-        <div class="body"><h3><a href="himicheskaya-zavivka.html">Химзавивка</a></h3><p class="desc">Биозавивка и классическая — устойчивая форма надолго.</p>
-        <div class="meta"><span class="price">от 3000₽</span><span class="dur">⏱ ~2 часа</span></div></div>
+        <div class="body"><h3><a href="himicheskaya-zavivka.html">Химзавивка</a></h3><p class="desc">Химическая завивка на короткие, средние и длинные волосы.</p>
+        <div class="meta"><span class="price">от 3000₽</span><span class="dur">⏱ 2–3 ч</span></div></div>
       </div>
       <div class="card rv" style="--d:0.00s">
         <a class="go" href="strizhki.html" aria-label="Подробнее: Женская стрижка">↗</a>
         <div class="shot"><img src="images/svc-haircut-women.svg" alt="Женская стрижка — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
-        <div class="body"><h3><a href="strizhki.html">Женская стрижка</a></h3><p class="desc">С учётом формы лица и пожеланий клиента.</p>
-        <div class="meta"><span class="price">от 600₽</span><span class="dur">⏱ 30 мин</span></div></div>
+        <div class="body"><h3><a href="strizhki.html">Женская стрижка</a></h3><p class="desc">С учётом формы лица и пожеланий. Отдельная цена для густых волос.</p>
+        <div class="meta"><span class="price">от 600₽</span><span class="dur">⏱ 30 мин – 1 ч</span></div></div>
       </div>
       <div class="card rv" style="--d:0.08s">
         <a class="go" href="strizhki.html" aria-label="Подробнее: Мужская стрижка">↗</a>
         <div class="shot"><img src="images/svc-haircut-men.svg" alt="Мужская стрижка — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
-        <div class="body"><h3><a href="strizhki.html">Мужская стрижка</a></h3><p class="desc">Аккуратная классическая или современная.</p>
-        <div class="meta"><span class="price">300₽</span><span class="dur">⏱ 30 мин</span></div></div>
+        <div class="body"><h3><a href="strizhki.html">Мужская стрижка</a></h3><p class="desc">Классическая или под насадку.</p>
+        <div class="meta"><span class="price">от 300₽</span><span class="dur">⏱ 30 мин</span></div></div>
       </div>
       <div class="card rv" style="--d:0.16s">
         <a class="go" href="strizhki.html" aria-label="Подробнее: Детская стрижка">↗</a>
         <div class="shot"><img src="images/svc-haircut-kids.svg" alt="Детская стрижка — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
-        <div class="body"><h3><a href="strizhki.html">Детская стрижка</a></h3><p class="desc">Комфортно для детей, в спокойной обстановке. Пенсионерам — 400 ₽.</p>
+        <div class="body"><h3><a href="strizhki.html">Детская стрижка</a></h3><p class="desc">Спокойно и аккуратно. Пенсионерам — та же цена.</p>
         <div class="meta"><span class="price">400₽</span><span class="dur">⏱ 30 мин</span></div></div>
       </div>
       <div class="card rv" style="--d:0.24s">
         <a class="go" href="brovi.html" aria-label="Подробнее: Брови">↗</a>
         <div class="shot"><img src="images/svc-brows.svg" alt="Брови — студия «Море красок», Екатеринбург" width="560" height="420" loading="lazy"></div>
-        <div class="body"><h3><a href="brovi.html">Брови</a></h3><p class="desc">Коррекция и окрашивание. Подбор идеальной формы.</p>
-        <div class="meta"><span class="price">от 800₽</span><span class="dur">⏱ 30 минут</span></div></div>
+        <div class="body"><h3><a href="brovi.html">Брови</a></h3><p class="desc">Коррекция, окрашивание или всё вместе.</p>
+        <div class="meta"><span class="price">от 300₽</span><span class="dur">⏱ 30 мин – 1 ч</span></div></div>
       </div>
+<!-- <<< CARDS -->
     </div>
+    <!-- >>> PRICELIST из prices.json -->
+    <div class="pricelist rv">
+      <h3 class="pl-title">Полный прайс</h3>
+      <p class="pl-note">Нажмите на раздел, чтобы раскрыть. Длина волос — до 15, до 30 и до 45 см.</p>
+      <details class="pl-cat"><summary>Стрижки<span>от 300 ₽</span></summary>
+        <table class="pl-table">
+          <tr><td>Стрижка женская</td><td class="t">30 мин</td><td class="p">600 ₽</td></tr>
+          <tr><td>Стрижка женская (густые волосы)</td><td class="t">1 ч</td><td class="p">800 ₽</td></tr>
+          <tr><td>Стрижка пенсионерам</td><td class="t">30 мин</td><td class="p">400 ₽</td></tr>
+          <tr><td>Стрижка мужская (под насадку)</td><td class="t">30 мин</td><td class="p">300 ₽</td></tr>
+          <tr><td>Стрижка мужская</td><td class="t">30 мин</td><td class="p">450 ₽</td></tr>
+          <tr><td>Стрижка детская</td><td class="t">30 мин</td><td class="p">400 ₽</td></tr>
+          <tr><td>Подравнивание / чёлка</td><td class="t">30 мин</td><td class="p">250 ₽</td></tr>
+        </table>
+      </details>
+      <details class="pl-cat"><summary>Окрашивание<span>от 1700 ₽</span></summary>
+        <table class="pl-table">
+          <tr><td>Окрашивание / тонирование в один тон до 15 см</td><td class="t">1,5 ч</td><td class="p">2000 ₽</td></tr>
+          <tr><td>Окрашивание / тонирование в один тон до 30 см</td><td class="t">1,5 ч</td><td class="p">2500 ₽</td></tr>
+          <tr><td>Окрашивание / тонирование в один тон до 45 см</td><td class="t">2 ч</td><td class="p">3000 ₽</td></tr>
+          <tr><td>Окрашивание корней</td><td class="t">1,5 ч</td><td class="p">1700 ₽</td></tr>
+          <tr><td>Окрашивание прядей (1 прядь)</td><td class="t">1,5 ч</td><td class="p">350 ₽</td></tr>
+        </table>
+      </details>
+      <details class="pl-cat"><summary>Мелирование<span>от 2500 ₽</span></summary>
+        <table class="pl-table">
+          <tr><td>Мелирование корней</td><td class="t">2 ч</td><td class="p">2500 ₽</td></tr>
+          <tr><td>Мелирование до 15 см</td><td class="t">2 ч</td><td class="p">2500 ₽</td></tr>
+          <tr><td>Мелирование до 30 см</td><td class="t">2 ч</td><td class="p">3000 ₽</td></tr>
+          <tr><td>Мелирование до 45 см</td><td class="t">3 ч</td><td class="p">4000 ₽</td></tr>
+        </table>
+      </details>
+      <details class="pl-cat"><summary>Химическая завивка<span>от 3000 ₽</span></summary>
+        <table class="pl-table">
+          <tr><td>Химическая завивка до 15 см</td><td class="t">2 ч</td><td class="p">3000 ₽</td></tr>
+          <tr><td>Химическая завивка до 30 см</td><td class="t">3 ч</td><td class="p">3500 ₽</td></tr>
+          <tr><td>Химическая завивка до 45 см</td><td class="t">3 ч</td><td class="p">по запросу</td></tr>
+        </table>
+      </details>
+      <details class="pl-cat"><summary>Комплексы<span>от 2600 ₽</span></summary>
+        <table class="pl-table">
+          <tr><td>Стрижка + окрашивание в один тон до 15 см</td><td class="t">2 ч</td><td class="p">2600 ₽</td></tr>
+          <tr><td>Стрижка + окрашивание в один тон до 30 см</td><td class="t">2 ч</td><td class="p">3100 ₽</td></tr>
+          <tr><td>Стрижка + окрашивание в один тон до 45 см</td><td class="t">2,5 ч</td><td class="p">3600 ₽</td></tr>
+          <tr><td>Стрижка + мелирование до 15 см</td><td class="t">2,5 ч</td><td class="p">3100 ₽</td></tr>
+          <tr><td>Стрижка + мелирование до 30 см</td><td class="t">2,5 ч</td><td class="p">3600 ₽</td></tr>
+          <tr><td>Стрижка + мелирование до 45 см</td><td class="t">3,5 ч</td><td class="p">4600 ₽</td></tr>
+          <tr><td>Стрижка + мелирование + тонирование до 15 см</td><td class="t">3 ч</td><td class="p">5000 ₽</td></tr>
+          <tr><td>Стрижка + мелирование + тонирование до 30 см</td><td class="t">3 ч</td><td class="p">6500 ₽</td></tr>
+          <tr><td>Стрижка + мелирование + тонирование до 45 см</td><td class="t">4 ч</td><td class="p">7500 ₽</td></tr>
+          <tr><td>Мелирование + окрашивание до 15 см</td><td class="t">2,5 ч</td><td class="p">4500 ₽</td></tr>
+          <tr><td>Мелирование + окрашивание до 30 см</td><td class="t">2,5 ч</td><td class="p">6000 ₽</td></tr>
+          <tr><td>Мелирование + окрашивание до 45 см</td><td class="t">4 ч</td><td class="p">7000 ₽</td></tr>
+        </table>
+      </details>
+      <details class="pl-cat"><summary>Маникюр<span>от 1000 ₽</span></summary>
+        <table class="pl-table">
+          <tr><td>Маникюр без покрытия (комбинированный)</td><td class="t">30 мин</td><td class="p">1000 ₽</td></tr>
+          <tr><td>Маникюр с покрытием гель-лак</td><td class="t">2 ч</td><td class="p">1800 ₽</td></tr>
+          <tr><td>Маникюр с покрытием гель-лак + наращивание</td><td class="t">3 ч</td><td class="p">2800 ₽</td></tr>
+          <tr><td>Японский маникюр</td><td class="t">1,5 ч</td><td class="p">1600 ₽</td></tr>
+          <tr><td>Снятие чужого покрытия</td><td class="t">30 мин</td><td class="p">200 ₽</td></tr>
+        </table>
+      </details>
+      <details class="pl-cat"><summary>Педикюр<span>от 1400 ₽</span></summary>
+        <table class="pl-table">
+          <tr><td>Педикюр комбинированный (стопы и пальчики)</td><td class="t">1 ч</td><td class="p">1400 ₽</td></tr>
+          <tr><td>Педикюр + гель-лак (без обработки стоп)</td><td class="t">1,5 ч</td><td class="p">1800 ₽</td></tr>
+          <tr><td>Педикюр комбинированный (полная обработка)</td><td class="t">2 ч</td><td class="p">2500 ₽</td></tr>
+          <tr><td>Подстричь ногти на ногах</td><td class="t">15 мин</td><td class="p">100 ₽</td></tr>
+        </table>
+      </details>
+      <details class="pl-cat"><summary>Брови<span>от 300 ₽</span></summary>
+        <table class="pl-table">
+          <tr><td>Окрашивание бровей</td><td class="t">30 мин</td><td class="p">300 ₽</td></tr>
+          <tr><td>Коррекция бровей</td><td class="t">30 мин</td><td class="p">300 ₽</td></tr>
+          <tr><td>Окрашивание + коррекция бровей</td><td class="t">1 ч</td><td class="p">600 ₽</td></tr>
+        </table>
+      </details>
+    </div>
+<!-- <<< PRICELIST -->
   </div>
 </section>
 
@@ -661,21 +1200,12 @@ var PERKS=[
 /* Преимущества тоже записаны разметкой — по той же причине, что и услуги. */
 
 // ---- Услуги ----
-var SERVICES=[
-  {ic:'svc-manicure',img:'manicure',n:'Маникюр',d:'Без покрытия — 1000 ₽, с гель-лаком — 1800 ₽, наращивание с покрытием — 2800 ₽.',t:'2 часа',p:'от 1000₽'},
-  {ic:'svc-pedicure',img:'pedicure',n:'Педикюр',d:'Без покрытия — 1000 ₽, с покрытием — 1600 ₽, обработка стоп — 1400 ₽.',t:'2 часа',p:'от 1000₽'},
-  {ic:'svc-coloring',img:'coloring',n:'Окрашивание',d:'Корни — 1500 ₽, в один тон и тонирование — от 2000 ₽, осветление — 2000 ₽, мелирование — от 2500 ₽.',t:'2 часа',p:'от 1500₽'},
-  {ic:'svc-perm',img:'perm',n:'Химзавивка',d:'Биозавивка и классическая — устойчивая форма надолго.',t:'~2 часа',p:'от 3000₽'},
-  {ic:'svc-haircut-women',img:'haircut-women',n:'Женская стрижка',d:'С учётом формы лица и пожеланий клиента.',t:'30 мин',p:'от 600₽'},
-  {ic:'svc-haircut-men',img:'haircut-men',n:'Мужская стрижка',d:'Аккуратная классическая или современная.',t:'30 мин',p:'300₽'},
-  {ic:'svc-haircut-kids',img:'haircut-kids',n:'Детская стрижка',d:'Комфортно для детей, в спокойной обстановке. Пенсионерам — 400 ₽.',t:'30 мин',p:'400₽'},
-  {ic:'svc-brows',img:'brows',n:'Брови',d:'Коррекция и окрашивание. Подбор идеальной формы.',t:'30 минут',p:'от 800₽'}
-];
-/* Карточки услуг больше не собираются скриптом — они записаны разметкой выше.
-   Поисковик читает исходный код страницы: пока карточки рисовались скриптом,
-   вместо «Маникюр — от 1000 ₽» там стояла заготовка, и самое ценное для
-   поиска — названия услуг и цены — могло вообще не попасть в индекс.
-   Массив SERVICES остался: из него собирается список услуг в форме записи. */
+/* Каталог услуг — тот же, что у бота: оба собираются из prices.json
+   скриптом update-prices.py. Поэтому название в форме записи совпадает
+   с тем, что ждёт сервер, а цена на сайте — с той, что показывает бот. */
+/* >>> CATALOG из prices.json */
+var CATALOG=[{"name":"Стрижки","services":[{"n":"Стрижка женская","m":30,"p":600},{"n":"Стрижка женская (густые волосы)","m":60,"p":800},{"n":"Стрижка пенсионерам","m":30,"p":400},{"n":"Стрижка мужская (под насадку)","m":30,"p":300},{"n":"Стрижка мужская","m":30,"p":450},{"n":"Стрижка детская","m":30,"p":400},{"n":"Подравнивание / чёлка","m":30,"p":250}]},{"name":"Окрашивание","services":[{"n":"Окрашивание / тонирование в один тон до 15 см","m":90,"p":2000},{"n":"Окрашивание / тонирование в один тон до 30 см","m":90,"p":2500},{"n":"Окрашивание / тонирование в один тон до 45 см","m":120,"p":3000},{"n":"Окрашивание корней","m":90,"p":1700},{"n":"Окрашивание прядей (1 прядь)","m":90,"p":350}]},{"name":"Мелирование","services":[{"n":"Мелирование корней","m":120,"p":2500},{"n":"Мелирование до 15 см","m":120,"p":2500},{"n":"Мелирование до 30 см","m":120,"p":3000},{"n":"Мелирование до 45 см","m":180,"p":4000}]},{"name":"Химическая завивка","services":[{"n":"Химическая завивка до 15 см","m":120,"p":3000},{"n":"Химическая завивка до 30 см","m":180,"p":3500},{"n":"Химическая завивка до 45 см","m":180,"p":null}]},{"name":"Комплексы","services":[{"n":"Стрижка + окрашивание в один тон до 15 см","m":120,"p":2600},{"n":"Стрижка + окрашивание в один тон до 30 см","m":120,"p":3100},{"n":"Стрижка + окрашивание в один тон до 45 см","m":150,"p":3600},{"n":"Стрижка + мелирование до 15 см","m":150,"p":3100},{"n":"Стрижка + мелирование до 30 см","m":150,"p":3600},{"n":"Стрижка + мелирование до 45 см","m":210,"p":4600},{"n":"Стрижка + мелирование + тонирование до 15 см","m":180,"p":5000},{"n":"Стрижка + мелирование + тонирование до 30 см","m":180,"p":6500},{"n":"Стрижка + мелирование + тонирование до 45 см","m":240,"p":7500},{"n":"Мелирование + окрашивание до 15 см","m":150,"p":4500},{"n":"Мелирование + окрашивание до 30 см","m":150,"p":6000},{"n":"Мелирование + окрашивание до 45 см","m":240,"p":7000}]},{"name":"Маникюр","services":[{"n":"Маникюр без покрытия (комбинированный)","m":30,"p":1000},{"n":"Маникюр с покрытием гель-лак","m":120,"p":1800},{"n":"Маникюр с покрытием гель-лак + наращивание","m":180,"p":2800},{"n":"Японский маникюр","m":90,"p":1600},{"n":"Снятие чужого покрытия","m":30,"p":200}]},{"name":"Педикюр","services":[{"n":"Педикюр комбинированный (стопы и пальчики)","m":60,"p":1400},{"n":"Педикюр + гель-лак (без обработки стоп)","m":90,"p":1800},{"n":"Педикюр комбинированный (полная обработка)","m":120,"p":2500},{"n":"Подстричь ногти на ногах","m":15,"p":100}]},{"name":"Брови","services":[{"n":"Окрашивание бровей","m":30,"p":300},{"n":"Коррекция бровей","m":30,"p":300},{"n":"Окрашивание + коррекция бровей","m":60,"p":600}]}];
+/* <<< CATALOG */
 
 // ---- бегущая строка: дублируем контент для бесшовности ----
 var tt=document.getElementById('tickerTrack');
@@ -813,8 +1343,12 @@ var bform=document.getElementById('bform'),bnote=document.getElementById('bformN
 var svcSel=document.getElementById('bformSvc'),dayHint=document.getElementById('bformDay');
 var slotsBox=document.getElementById('bformSlots');
 
-svcSel.innerHTML=SERVICES.map(function(s){
-  return '<option value="'+s.n+'">'+s.n+' · '+s.t+'</option>';
+// 45 услуг плоским списком не найти — группируем по категориям
+svcSel.innerHTML=CATALOG.map(function(c){
+  return '<optgroup label="'+c.name+'">'+c.services.map(function(x){
+    var price=x.p==null?'по запросу':x.p+' ₽';
+    return '<option value="'+x.n+'">'+x.n+' · '+price+'</option>';
+  }).join('')+'</optgroup>';
 }).join('');
 
 function ruDate(key){
