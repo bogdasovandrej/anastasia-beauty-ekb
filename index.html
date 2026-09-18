@@ -809,6 +809,9 @@ select.fld{cursor:pointer;appearance:none;background-image:linear-gradient(45deg
 .dock a{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:var(--pill);font-size:14px;font-weight:700;text-decoration:none;color:#fff}
 .dock .d-book{background:var(--grad-rose)}
 .dock .d-call{background:rgba(255,255,255,.14)}
+/* над формой записи панель закрывала поля и кнопку «Записаться» */
+.dock{transition:opacity .2s,transform .2s}
+.dock.off{opacity:0;pointer-events:none;transform:translate(-50%,20px)}
 
 @media(max-width:639px){
   /* на узком экране фото занимает всю ширину — не даём карточкам уехать за край */
@@ -1200,6 +1203,15 @@ font-weight:700;font-size:15.5px;list-style:none}
 
 <script>
 var RM=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* Нижняя панель «Записаться / Позвонить» ведёт к форме. Когда форма уже
+   на экране, панель только закрывает поля и кнопку отправки — прячем её. */
+(function(){
+  var dock=document.querySelector('.dock'),form=document.getElementById('bform');
+  if(!dock||!form||!('IntersectionObserver' in window))return;
+  new IntersectionObserver(function(es){
+    dock.classList.toggle('off',es[0].isIntersecting);
+  }).observe(form);
+})();
 
 // ---- Преимущества ----
 var PERKS=[

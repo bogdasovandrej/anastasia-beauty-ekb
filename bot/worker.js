@@ -314,6 +314,24 @@ CATALOG.forEach(function (c, k) {
   });
 });
 
+/* Названия услуг до нового прайса. Страница сайта, открытая до обновления
+   (вкладка в телефоне живёт днями), присылает старое название — раньше такой
+   клиент получал «Выберите услугу» и не мог записаться. Длительность у замены
+   не меньше прежней, чтобы окно в графике не оказалось короче работы. */
+const LEGACY_SERVICE = {
+  Маникюр: 'Маникюр с покрытием гель-лак',
+  Педикюр: 'Педикюр комбинированный (полная обработка)',
+  Окрашивание: 'Окрашивание / тонирование в один тон до 45 см',
+  Химзавивка: 'Химическая завивка до 15 см',
+  'Женская стрижка': 'Стрижка женская',
+  'Мужская стрижка': 'Стрижка мужская',
+  'Детская стрижка': 'Стрижка детская',
+  Брови: 'Коррекция бровей',
+};
+function canonService(s) {
+  return DURATION[s] ? s : LEGACY_SERVICE[s] || s;
+}
+
 function priceText(p) {
   return p == null ? 'цена по запросу' : p + ' ₽';
 }
@@ -389,6 +407,7 @@ async function busyOn(env, day) {
 и оставляем те начала, где услуга целиком помещается до конца рабочего дня
 и не задевает уже занятое время. */
 async function freeSlots(env, day, service) {
+  service = canonService(service);
   const dur = DURATION[service];
   if (!dur) return { error: 'Неизвестная услуга' };
   if (!(await isWorkingDay(env, day))) return { slots: [], reason: 'выходной' };
@@ -421,7 +440,7 @@ function cleanField(v, max) {
 async function createBooking(env, body) {
   const name = cleanField(body.name, 80);
   const phone = cleanField(body.phone, 30);
-  const service = cleanField(body.service, 80);
+  const service = canonService(cleanField(body.service, 80));
   const day = cleanField(body.day, 10);
   const start = parseInt(body.start, 10);
 
