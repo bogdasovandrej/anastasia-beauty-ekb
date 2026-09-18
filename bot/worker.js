@@ -368,7 +368,7 @@ function asTg(rows) {
   });
 }
 const WORK_FROM = 8 * 60; // 8:00 — по просьбе мастера, раньше было 9:00
-const WORK_TO = 19 * 60; // 19:00
+const WORK_TO = 20 * 60; // 20:00 — по просьбе мастера, раньше было 19:00
 const STEP = 30; // шаг сетки — полчаса
 const EKB = 5 * 60; // Екатеринбург, UTC+5
 
@@ -1352,14 +1352,32 @@ async function handleClientBot(env, update) {
 /* Раз в день: клиентам, записанным через бота, — напоминание накануне,
    мастеру — расписание на сегодня. Неявки чаще всего от забывчивости,
    и одно сообщение накануне снимает большую их часть. */
+/* Сообщение клиенту в тот мессенджер, через который он записался.
+   true — только если мессенджер подтвердил доставку: иначе запись
+   не помечаем, и следующий запуск попробует ещё раз. */
+async function sendToClient(env, b, text) {
+  if (b.client_kind === 'tg' && env.TG_CLIENT_TOKEN) {
+    const j = await tgc(env, 'sendMessage', { chat_id: b.client_chat, text: text });
+    return !!(j && j.ok);
+  }
+  if (b.client_kind === 'max' && env.MAX_CLIENT_TOKEN) {
+    const j = await maxcSend(env, b.client_chat, text);
+    // успешный ответ — {message: {...}}; ошибка — {code, message: 'текст'}
+    return !!(j && j.message && typeof j.message === 'object');
+  }
+  return false;
+}
+
 async function sendReminders(env, утро) {
   const now = nowEkb();
 
-  /* Напоминание за сутки. Смотрим завтрашний день и шлём тем, кому ещё
-     не отправляли. Час выбран удобный — не раньше десяти утра, чтобы
-     не будить человека сообщением о визите. Отдельный признак reminded_day,
-     иначе суточное и трёхчасовое напоминания гасили бы друг друга. */
+  /* Напоминание за сутки — единственное, по просьбе мастера (трёхчасовое убрано).
+     Смотрим завтрашний день и шлём тем, кому ещё не отправляли. Окно с 10:00
+     до 11:00: не будим человека, а запуск каждые полчаса даёт вторую попытку,
+     если мессенджер в первый раз не ответил. Записи с сайта без чата сюда
+     не попадают — написать им некуда. */
   const tomorrow = new Date(Date.now() + EKB * 60000 + 86400000).toISOString().slice(0, 10);
+  let sent = 0;
   if (now.min >= 600 && now.min < 660) {
     const d = await env.DB.prepare(
       'SELECT id, day, start_min, end_min, service, client_chat, client_kind FROM bookings ' +
@@ -1376,59 +1394,20 @@ async function sendReminders(env, утро) {
         'Студия «Море красок», ул. Донбасская, 4' + NL +
         'Если планы изменились, позвоните: ' + PHONE;
       try {
-        if (b.client_kind === 'tg' && env.TG_CLIENT_TOKEN) {
-          await tgc(env, 'sendMessage', { chat_id: b.client_chat, text: text });
+        if (await sendToClient(env, b, text)) {
+          await env.DB.prepare('UPDATE bookings SET reminded_day = 1 WHERE id = ?').bind(b.id).run();
+          sent++;
+        } else {
+          console.log('Напоминание за сутки ' + b.id + ' не доставлено (' + b.client_kind + ')');
         }
-        await env.DB.prepare('UPDATE bookings SET reminded_day = 1 WHERE id = ?').bind(b.id).run();
       } catch (e) {
         console.log('Напоминание за сутки ' + b.id + ': ' + e.message);
       }
     }
   }
 
-  /* Напоминаем примерно за три часа до визита. Проверка идёт каждые полчаса,
-     поэтому берём окно от двух до трёх с половиной часов: сообщение уйдёт
-     ровно один раз и заведомо не позже, чем за два часа до начала.
-     Имя из запроса убрано — оно больше не хранится в этой базе. */
-  const r = await env.DB.prepare(
-    'SELECT id, day, start_min, end_min, service, client_chat, client_kind FROM bookings ' +
-      "WHERE day = ? AND status != 'cancelled' AND reminded = 0 AND client_chat IS NOT NULL " +
-      'AND (start_min - ?) BETWEEN 120 AND 210',
-  )
-    .bind(now.day, now.min)
-    .all();
-
-  for (const b of r.results) {
-    const text =
-      'Напоминаем о записи 🌸' +
-      NL +
-      NL +
-      '🕐 сегодня в ' +
-      hhmm(b.start_min) +
-      ', примерно через ' +
-      Math.round((b.start_min - now.min) / 60) +
-      ' ч' +
-      NL +
-      '💅 ' +
-      b.service +
-      NL +
-      NL +
-      'Студия «Море красок», ул. Донбасская, 4' +
-      NL +
-      'Если планы изменились, позвоните: ' +
-      PHONE;
-    try {
-      if (b.client_kind === 'tg' && env.TG_CLIENT_TOKEN) {
-        await tgc(env, 'sendMessage', { chat_id: b.client_chat, text: text });
-      }
-      await env.DB.prepare('UPDATE bookings SET reminded = 1 WHERE id = ?').bind(b.id).run();
-    } catch (e) {
-      console.log('Напоминание ' + b.id + ': ' + e.message);
-    }
-  }
-
   // мастеру — что сегодня; только в утренний запуск
-  if (!утро) return { напомнили: r.results.length, записей_сегодня: null };
+  if (!утро) return { напомнили: sent, записей_сегодня: null };
   const today = await env.DB.prepare(
     'SELECT id, start_min, end_min, service FROM bookings ' +
       "WHERE day = ? AND status != 'cancelled' ORDER BY start_min",
@@ -1460,12 +1439,12 @@ async function sendReminders(env, утро) {
     const mc = await getSetting(env, 'max_chat');
     if (env.MAX_TOKEN && mc) await maxSend(env, mc, out);
   }
-  return { напомнили: r.results.length, записей_сегодня: today.results.length };
+  return { напомнили: sent, записей_сегодня: today.results.length };
 }
 
 // ---------- планер дня ----------
 
-/* Страница на замену планеру из «Lubava»: лента дня с 9:00 до 19:00,
+/* Страница на замену планеру из «Lubava»: лента дня с 8:00 до 20:00,
    занятые часы блоками, свободные — нажимаются и открывают быстрое добавление.
    Отдаёт её сам сервер по ссылке с ключом: на статическом сайте пароль
    спрятать негде, а здесь проверка происходит до отдачи страницы. */
@@ -1589,7 +1568,7 @@ background:linear-gradient(135deg,#d4a5a5,#b27d7d)}
 var KEY=new URLSearchParams(location.search).get('key');
 var day=new URLSearchParams(location.search).get('day')||new Date(Date.now()+5*3600000).toISOString().slice(0,10);
 var data=null,pickStart=null,pickId=null;
-var FROM=540,TO=1140,STEP=30;
+var FROM=480,TO=1200,STEP=30;
 function hhmm(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
 // 1 запись, 2 записи, 5 записей — иначе получается «1 записи»
 function plural(n){
@@ -1769,7 +1748,7 @@ async function handleTelegram(env, update) {
       await tg(env, 'sendMessage', {
         chat_id: chatId,
         text:
-          'Планер дня — расписание с 8:00 до 19:00.' +
+          'Планер дня — расписание с 8:00 до 20:00.' +
           NL +
           NL +
           SITE +
@@ -2216,7 +2195,7 @@ async function handleMax(env, update) {
       } else if (what === 'planer') {
         const k = await planerKey(env);
         out =
-          'Планер дня — расписание с 8:00 до 19:00.' +
+          'Планер дня — расписание с 8:00 до 20:00.' +
           NL +
           NL +
           SITE +
@@ -2492,9 +2471,9 @@ async function handleSetup(env, url) {
 // ---------- точка входа ----------
 
 export default {
-  /* Задача идёт каждые полчаса — так часто нужно только напоминаниям,
-     которые уходят примерно за три часа до визита. Уборка и утренняя
-     сводка мастеру нужны раз в день, поэтому они по времени. */
+  /* Задача идёт каждые полчаса: напоминания за сутки уходят с 10:00 до 11:00,
+     и второй запуск в этом окне — повтор, если мессенджер не ответил.
+     Уборка и утренняя сводка мастеру нужны раз в день, поэтому они по времени. */
   async scheduled(event, env, ctx) {
     const t = new Date(Date.now() + EKB * 60000);
     const утро = t.getUTCHours() === 8 && t.getUTCMinutes() < 30;
