@@ -1116,9 +1116,6 @@ font-weight:700;font-size:15.5px;list-style:none}
           <label class="fld-lbl">4. Контакты</label>
           <input class="fld ym-disable-keys ym-hide-content" name="name" placeholder="Как вас зовут" maxlength="80" autocomplete="name" required>
           <input class="fld ym-disable-keys ym-hide-content" name="phone" type="tel" placeholder="Телефон" maxlength="30" autocomplete="tel" required>
-          <!-- ловушка для спам-ботов: человек её не видит и не заполняет -->
-          <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-
           <!-- Галочка, а не строчка мелким шрифтом: согласие должно быть
                осознанным действием, а не следствием нажатия кнопки. -->
           <label class="agree"><input type="checkbox" id="bformAgree">
@@ -1458,7 +1455,7 @@ bform.addEventListener('submit',function(e){
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({name:name,phone:phone,service:svcSel.value,
-      day:pickedDay,start:pickedStart,website:f.website.value})
+      day:pickedDay,start:pickedStart})
   }).then(function(r){
     return r.json().catch(function(){return null});
   }).then(function(res){
