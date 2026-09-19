@@ -1433,7 +1433,10 @@ slotsBox.addEventListener('click',function(e){
 
 bform.addEventListener('submit',function(e){
   e.preventDefault();
-  var f=bform.elements,btn=bform.querySelector('button');
+  /* Именно кнопка отправки: первая кнопка в форме — это кнопка времени
+     (они тоже внутри формы), у неё нет <span>, и код падал на ней, не отправив
+     заявку. Так запись с сайта не работала с 9 сентября. */
+  var f=bform.elements,btn=bform.querySelector('button[type=submit]');
   var name=f.name.value.trim(),phone=f.phone.value.trim();
   var digits=(phone.match(/\d/g)||[]).length;
   f.name.classList.toggle('bad',!name);
