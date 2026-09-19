@@ -1474,7 +1474,24 @@ bform.addEventListener('submit',function(e){
       return;
     }
     fail(res&&res.error);
-  }).catch(function(){fail()});
+  }).catch(function(){lostAnswer()});
+
+  /* Ответ не дошёл (слабая связь, обрыв). Запись при этом могла создаться —
+     тогда выбранное время теперь занято. Проверяем, чтобы не писать
+     «не удалось» тому, кто уже записан, и не толкать его записаться дважды. */
+  function lostAnswer(){
+    var day=pickedDay,start=pickedStart;
+    fetch(API+'/busy?day='+day).then(function(r){return r.json()}).then(function(res){
+      var taken=((res&&res.busy)||[]).some(function(b){return b.min===start||hm(b.start)===start});
+      if(!taken){fail();return;}
+      bform.classList.add('sent');
+      bnote.className='bform-note ok';
+      bnote.innerHTML='✅ Похоже, вы записаны<br>'+ruDate(day)+'<br>'+svcSel.value+
+        '<br><br>Связь прервалась, но время уже за вами. Анастасия свяжется, чтобы подтвердить. '+
+        'Если сомневаетесь — позвоните: '+PHONE_TEXT;
+    }).catch(function(){fail()});
+  }
+  function hm(t){var p=String(t||'').split(':');return (+p[0])*60+(+p[1]||0)}
 
   function fail(msg){
     btn.disabled=false;btn.querySelector('span').textContent='Записаться';

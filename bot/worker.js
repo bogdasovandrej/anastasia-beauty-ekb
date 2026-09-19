@@ -252,8 +252,18 @@ async function pdCall(env, action, body) {
   }
 }
 
+/* До трёх попыток: хранилище в Облаке после простоя просыпается секунду-другую,
+   и первая попытка может не пройти. Без имени и телефона мастеру некому звонить. */
 async function pdSave(env, id, name, phone, note) {
-  await pdCall(env, 'put', { id: id, name: name, phone: phone, note: note || '' });
+  for (let i = 0; i < 3; i++) {
+    const r = await pdCall(env, 'put', { id: id, name: name, phone: phone, note: note || '' });
+    if (r && r.ok) return true;
+    await new Promise(function (ok) {
+      setTimeout(ok, 800);
+    });
+  }
+  console.log('pd: имя и телефон записи ' + id + ' не сохранились');
+  return false;
 }
 
 async function pdLoad(env, id) {
@@ -413,9 +423,11 @@ async function freeSlots(env, day, service) {
   if (!(await isWorkingDay(env, day))) return { slots: [], reason: 'выходной' };
 
   const busy = await busyOn(env, day);
-  const now = nowEkb();
-  const slots = [];
+  return { slots: slotsIn(day, dur, busy, nowEkb()), duration: dur };
+}
 
+function slotsIn(day, dur, busy, now) {
+  const slots = [];
   for (let s = WORK_FROM; s + dur <= WORK_TO; s += STEP) {
     if (day < now.day) break;
     // на сегодня не предлагаем то, что уже началось, и оставляем час на сборы
@@ -425,7 +437,7 @@ async function freeSlots(env, day, service) {
     });
     if (!clash) slots.push({ start: hhmm(s), end: hhmm(s + dur), min: s });
   }
-  return { slots: slots, duration: dur };
+  return slots;
 }
 
 function cleanField(v, max) {
@@ -437,7 +449,11 @@ function cleanField(v, max) {
 
 /* Бронирование. Проверку на занятость делаем ещё раз прямо перед записью:
 между тем, как клиент увидел окно и нажал кнопку, его мог занять другой. */
-async function createBooking(env, body) {
+/* ctx есть у запроса с сайта. С ним клиент получает ответ сразу после записи
+   в базу, а сохранение имени в хранилище и уведомления мастеру идут уже после
+   ответа. Раньше сайт ждал всю цепочку — хранилище (секунды), Telegram, МАКС —
+   и не дожидался: запись создавалась, а клиент видел «не удалось записаться». */
+async function createBooking(env, body, ctx) {
   const name = cleanField(body.name, 80);
   const phone = cleanField(body.phone, 30);
   const service = canonService(cleanField(body.service, 80));
@@ -485,20 +501,26 @@ async function createBooking(env, body) {
     .run();
 
   const id = res.meta.last_row_id;
-  // имя и телефон — в российское хранилище, отдельным обращением
-  await pdSave(env, id, name, phone, '');
-  // если запись завела сама мастер — уведомлять её о ней же незачем
-  if (!body.silent) {
-    await notifyMaster(env, {
-      id: id,
-      day: day,
-      start: start,
-      end: start + dur,
-      service: service,
-      name: name,
-      phone: phone,
-    });
-  }
+  const tail = Promise.all([
+    // имя и телефон — в российское хранилище, отдельным обращением
+    pdSave(env, id, name, phone, ''),
+    // если запись завела сама мастер — уведомлять её о ней же незачем
+    body.silent
+      ? null
+      : notifyMaster(env, {
+          id: id,
+          day: day,
+          start: start,
+          end: start + dur,
+          service: service,
+          name: name,
+          phone: phone,
+        }),
+  ]).catch(function (e) {
+    console.log('После записи ' + id + ': ' + e.message);
+  });
+  if (ctx) ctx.waitUntil(tail);
+  else await tail;
   return { ok: true, id: id, start: hhmm(start), end: hhmm(start + dur) };
 }
 
@@ -969,20 +991,83 @@ async function tgc(env, method, payload) {
   return j;
 }
 
-/* Ближайшие рабочие дни, где под услугу вообще есть свободное время.
-   Показывать день, в который всё занято, — злить человека впустую. */
-async function clientDays(env, service, limit) {
-  const out = [];
-  const probe = new Date(Date.now() + EKB * 60000);
-  for (let i = 0; i < 60 && out.length < (limit || 8); i++) {
-    const day = probe.toISOString().slice(0, 10);
-    if (await isWorkingDay(env, day)) {
-      const f = await freeSlots(env, day, service);
-      if (f.slots && f.slots.length) out.push({ day: day, free: f.slots.length });
+/* Дни месяца, где под услугу есть время. Раньше клиенту показывались только
+   ближайшие 8 рабочих дней — дальше начала октября записаться было нельзя.
+   Теперь месяц целиком и стрелки на соседние. Список, а не сетка-календарь:
+   сетку с пустыми кнопками МАКС отказывался нажимать.
+   График и записи за месяц читаются одной посылкой к базе — иначе
+   тридцать дней по три запроса, и мессенджер не дожидается ответа. */
+async function clientMonth(env, service, want) {
+  service = canonService(service);
+  const dur = DURATION[service];
+  const now = nowEkb();
+  const cur = now.day.slice(0, 7);
+  const sched = await loadSchedule(env);
+  const months = Object.keys(sched.off)
+    .filter(function (k) {
+      return k >= cur;
+    })
+    .sort();
+  if (!dur || !months.length) return { ym: want || cur, days: [], prev: null, next: null };
+
+  async function daysOf(key) {
+    const r = await env.DB.prepare(
+      "SELECT day, start_min, end_min FROM bookings WHERE day LIKE ? AND status != 'cancelled'",
+    )
+      .bind(key + '-%')
+      .all();
+    const off = new Set(sched.off[key] || []);
+    const p = key.split('-');
+    const dim = new Date(Date.UTC(+p[0], +p[1], 0)).getUTCDate();
+    const out = [];
+    for (let d = 1; d <= dim; d++) {
+      const day = key + '-' + String(d).padStart(2, '0');
+      if (day < now.day || off.has(d)) continue;
+      const busy = r.results.filter(function (b) {
+        return b.day === day;
+      });
+      const free = slotsIn(day, dur, busy, now).length;
+      if (free) out.push({ day: day, free: free });
     }
-    probe.setUTCDate(probe.getUTCDate() + 1);
+    return out;
   }
-  return out;
+
+  // без выбора — первый месяц, где есть свободное время
+  let key = want && months.indexOf(want) !== -1 ? want : months[0];
+  let days = await daysOf(key);
+  if (!want) {
+    for (let i = months.indexOf(key) + 1; !days.length && i < months.length && i < 4; i++) {
+      key = months[i];
+      days = await daysOf(key);
+    }
+  }
+  const i = months.indexOf(key);
+  return { ym: key, days: days, prev: i > 0 ? months[i - 1] : null, next: i < months.length - 1 ? months[i + 1] : null };
+}
+
+function monthName(key) {
+  const p = key.split('-');
+  return MONTHS[+p[1] - 1] + ' ' + p[0];
+}
+
+/* Кнопки выбора дня — общие для Telegram и МАКСа (в Telegram — через asTg). */
+function clientMonthView(service, res) {
+  const head =
+    '💅 ' + service + ' · ' + durText(DURATION[service]) + ' · ' + priceText(PRICE[service]) + NL + NL +
+    '📅 ' + monthName(res.ym) + NL +
+    (res.days.length
+      ? 'Выберите день:'
+      : 'В этом месяце свободного времени под эту услугу нет' +
+        (res.next ? ' — посмотрите следующий.' : '. Позвоните: ' + PHONE));
+  const rows = res.days.map(function (d) {
+    return [{ text: ruDay(d.day), data: 'cd:' + d.day }];
+  });
+  const nav = [];
+  if (res.prev) nav.push({ text: '← ' + MONTHS[+res.prev.slice(5) - 1], data: 'cm:' + res.prev });
+  if (res.next) nav.push({ text: MONTHS[+res.next.slice(5) - 1] + ' →', data: 'cm:' + res.next });
+  if (nav.length) rows.push(nav);
+  rows.push([{ text: '← Другая услуга', data: 'cb:svc' }]);
+  return { text: head, rows: rows };
 }
 
 function clientServiceButtons() {
@@ -1128,19 +1213,16 @@ async function handleMaxClient(env, update) {
       await answer(CATALOG[k].name + ':', serviceRows(k, 'cs:', 'cb:svc'));
       return;
     }
-    if (data.startsWith('cs:')) {
-      st.service = SERVICE_NAMES[parseInt(data.slice(3), 10)];
-      const days = await clientDays(env, st.service, 8);
+    if (data.startsWith('cs:') || data.startsWith('cm:')) {
+      if (data.startsWith('cs:')) st.service = SERVICE_NAMES[parseInt(data.slice(3), 10)];
+      if (!st.service) {
+        await answer('Выберите категорию:', maxServiceButtons());
+        return;
+      }
+      const res = await clientMonth(env, st.service, data.startsWith('cm:') ? data.slice(3) : null);
       await setCstate(env, chat, st);
-      await answer(
-        '💅 ' + st.service + ' · ' + durText(DURATION[st.service]) + ' · ' + priceText(PRICE[st.service]) + NL + NL +
-          (days.length ? 'Выберите день:' : 'Свободных дней пока нет. Позвоните: ' + PHONE),
-        days
-          .map(function (d) {
-            return [{ text: ruDay(d.day) + ' · свободно ' + d.free, data: 'cd:' + d.day }];
-          })
-          .concat([[{ text: '← Другая услуга', data: 'cb:svc' }]]),
-      );
+      const v = clientMonthView(st.service, res);
+      await answer(v.text, v.rows);
       return;
     }
 
@@ -1157,7 +1239,7 @@ async function handleMaxClient(env, update) {
           }),
         );
       }
-      rows.push([{ text: '← Другой день', data: 'cs:' + SERVICE_NAMES.indexOf(st.service) }]);
+      rows.push([{ text: '← Другой день', data: 'cm:' + st.day.slice(0, 7) }]);
       await answer('💅 ' + st.service + NL + '📅 ' + ruDay(st.day) + NL + NL + 'Выберите время:', rows);
       return;
     }
@@ -1247,33 +1329,26 @@ async function handleClientBot(env, update) {
       });
       return;
     }
-    if (data.startsWith('cs:')) {
-      st.service = SERVICE_NAMES[parseInt(data.slice(3), 10)];
-      await setCstate(env, chat, st);
-      const days = await clientDays(env, st.service, 8);
+    if (data.startsWith('cs:') || data.startsWith('cm:')) {
+      if (data.startsWith('cs:')) st.service = SERVICE_NAMES[parseInt(data.slice(3), 10)];
       await tgc(env, 'answerCallbackQuery', { callback_query_id: cb.id });
+      if (!st.service) {
+        await tgc(env, 'editMessageText', {
+          chat_id: chat,
+          message_id: cb.message.message_id,
+          text: 'Выберите категорию:',
+          reply_markup: { inline_keyboard: clientServiceButtons() },
+        });
+        return;
+      }
+      await setCstate(env, chat, st);
+      const res = await clientMonth(env, st.service, data.startsWith('cm:') ? data.slice(3) : null);
+      const v = clientMonthView(st.service, res);
       await tgc(env, 'editMessageText', {
         chat_id: chat,
         message_id: cb.message.message_id,
-        text:
-          '💅 ' +
-          st.service +
-          ' · ' +
-          durText(DURATION[st.service]) +
-          ' · ' +
-          priceText(PRICE[st.service]) +
-          NL +
-          NL +
-          (days.length ? 'Выберите день:' : 'Свободных дней пока нет. Позвоните: ' + PHONE),
-        reply_markup: {
-          inline_keyboard: days
-            .map(function (d) {
-              // без числа свободных окон: клиенту оно ничего не говорит,
-              // а «свободно 22» выглядит как техническая надпись
-              return [{ text: ruDay(d.day), callback_data: 'cd:' + d.day }];
-            })
-            .concat([[{ text: '← Другая услуга', callback_data: 'cb:svc' }]]),
-        },
+        text: v.text,
+        reply_markup: { inline_keyboard: asTg(v.rows) },
       });
       return;
     }
@@ -1302,7 +1377,7 @@ async function handleClientBot(env, update) {
           }),
         );
       }
-      rows.push([{ text: '← Другой день', callback_data: 'cs:' + SERVICE_NAMES.indexOf(st.service) }]);
+      rows.push([{ text: '← Другой день', callback_data: 'cm:' + st.day.slice(0, 7) }]);
       await tgc(env, 'answerCallbackQuery', { callback_query_id: cb.id });
       await tgc(env, 'editMessageText', {
         chat_id: chat,
@@ -2399,6 +2474,40 @@ async function handleDiag(env) {
     maxChatCheck = 'номер чата не сохранён';
   }
 
+  /* Куда мессенджеры шлют сообщения ботам. Если адрес пустой или чужой,
+     бот молчит, и снаружи это выглядит как «запись не работает». */
+  async function tgHook(token) {
+    if (!token) return 'нет токена';
+    try {
+      const j = await (await fetch('https://api.telegram.org/bot' + token + '/getWebhookInfo')).json();
+      const w = j.result || {};
+      return {
+        адрес: w.url || 'НЕ ПРИВЯЗАН',
+        ждут_доставки: w.pending_update_count,
+        последняя_ошибка: w.last_error_message || 'нет',
+      };
+    } catch (e) {
+      return 'ошибка: ' + e.message;
+    }
+  }
+  async function maxHook(token) {
+    if (!token) return 'нет токена';
+    try {
+      const j = await (await fetch(MAX_API + '/subscriptions', { headers: { Authorization: token } })).json();
+      const subs = (j.subscriptions || []).map(function (x) {
+        return x.url;
+      });
+      return subs.length ? subs : 'НЕ ПРИВЯЗАН';
+    } catch (e) {
+      return 'ошибка: ' + e.message;
+    }
+  }
+  const hooks = {
+    telegram_мастера: await tgHook(env.TG_TOKEN),
+    max_мастера: await maxHook(env.MAX_TOKEN),
+    max_клиентский: await maxHook(env.MAX_CLIENT_TOKEN),
+  };
+
   /* Список диалогов /chats у МАКСа убран намеренно: он возвращает пустоту
      даже когда переписка с ботом есть, и по нему я однажды сделал неверный
      вывод, что мастер не заходила в бота. Проверка выше спрашивает конкретный
@@ -2409,6 +2518,7 @@ async function handleDiag(env) {
     хранилище_в_России: pdCheck,
     клиентский_бот: clientBot,
     вебхук_клиентского: clientHook,
+    вебхуки: hooks,
     секреты: {
       TG_TOKEN: !!env.TG_TOKEN,
       TG_ADMIN_ID: !!env.TG_ADMIN_ID,
@@ -2503,7 +2613,7 @@ export default {
     console.log('Очистка: записей ' + r[0].meta.changes + ', заметок ' + r[1].meta.changes);
   },
 
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -2572,7 +2682,7 @@ export default {
             day: day,
             start: b.start,
             silent: true,
-          });
+          }, ctx);
           return json(res, res.ok ? 200 : 400, cors);
         }
 
@@ -2657,9 +2767,19 @@ export default {
         const body = await request.json().catch(function () {
           return {};
         });
-        // с выбранным временем — бронь; без него — просто просьба перезвонить
+        /* с выбранным временем — бронь; без него — просто просьба перезвонить.
+           Из формы берём только её поля: silent и чат клиента ставят сами боты,
+           и снаружи их подсунуть нельзя — иначе мастер не узнала бы о записи. */
+        const form = {
+          name: body.name,
+          phone: body.phone,
+          service: body.service,
+          day: body.day,
+          start: body.start,
+          website: body.website,
+        };
         const res =
-          body.day && body.start != null ? await createBooking(env, body) : await handleBooking(env, body);
+          form.day && form.start != null ? await createBooking(env, form, ctx) : await handleBooking(env, body);
         return json(res, res.ok ? 200 : 400, cors);
       }
 
