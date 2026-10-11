@@ -227,30 +227,61 @@ async function applyTap(env, data) {
 
 let pdLastError = null; // последняя ошибка обращения к хранилищу — для диагностики
 let pdDownUntil = 0; // хранилище молчит — до этого времени туда не ходим
+let pdCheckedUntil = 0; // когда в последний раз сверялись с отметкой в базе
 const PD_URL = 'https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net/pd/';
-const PD_TIMEOUT = 4000; // ждать ответа дольше нельзя: на том конце планер мастера
+const PD_READ = 1500; // чтение имён: планер ждёт ответа и не может висеть
+const PD_WRITE = 4000; // запись имени: тут лучше подождать, чем потерять
 const PD_PAUSE = 60000; // после отказа делаем паузу, чтобы не ждать таймаут в каждом запросе
+
+/* Отметку о сбое держим в базе, а не только в памяти: каждый запрос может
+   попасть на свежий обработчик, и тот снова ждал бы таймаут. Из-за этого
+   планер получал ответ через восемь секунд и писал «нет сети». */
+async function pdDownNow(env) {
+  if (Date.now() < pdDownUntil) return true;
+  if (Date.now() < pdCheckedUntil) return false;
+  pdCheckedUntil = Date.now() + 15000;
+  try {
+    const v = await getSetting(env, 'pd_down_until');
+    if (v && +v > Date.now()) {
+      pdDownUntil = +v;
+      return true;
+    }
+  } catch (e) {
+    /* нет связи с базой — просто попробуем хранилище */
+  }
+  return false;
+}
+
+async function pdNoteDown(env) {
+  pdDownUntil = Date.now() + PD_PAUSE;
+  try {
+    await setSetting(env, 'pd_down_until', String(pdDownUntil));
+  } catch (e) {
+    /* не записалось — останется хотя бы в памяти обработчика */
+  }
+}
 
 /* Когда Облако недоступно, каждый вызов висел до победного, а планеру нужны
    имена сразу для всего дня — страница открывалась двадцать секунд и дольше.
    Теперь у запроса есть срок, а после отказа минуту к хранилищу не обращаемся:
    день рисуется мгновенно, только вместо имён «имя не загрузилось». */
-async function pdCall(env, action, body) {
+async function pdCall(env, action, body, ms, force) {
   if (!env.PD_KEY) return null;
-  if (Date.now() < pdDownUntil) return null;
+  // force — мастер сама нажала «сохранить имя»: пробуем, даже если была отметка о сбое
+  if (!force && (await pdDownNow(env))) return null;
   try {
     const r = await fetch(PD_URL + action, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Pd-Key': env.PD_KEY },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(PD_TIMEOUT),
+      signal: AbortSignal.timeout(ms || PD_READ),
     });
     if (!r.ok) {
       // текст ответа сохраняем: по нему видно, отказ это по ключу или ошибка бакета
       const text = (await r.text()).slice(0, 200);
       console.log('pd/' + action + ': HTTP ' + r.status + ' ' + text);
       pdLastError = 'HTTP ' + r.status + ': ' + text;
-      pdDownUntil = Date.now() + PD_PAUSE;
+      await pdNoteDown(env);
       return null;
     }
     pdLastError = null;
@@ -258,7 +289,7 @@ async function pdCall(env, action, body) {
   } catch (e) {
     console.log('pd/' + action + ': ' + e.message);
     pdLastError = e.message;
-    pdDownUntil = Date.now() + PD_PAUSE;
+    await pdNoteDown(env);
     return null;
   }
 }
@@ -270,11 +301,11 @@ function pdDown() {
 /* До трёх попыток: хранилище в Облаке после простоя просыпается секунду-другую,
    и первая попытка может не пройти. Без имени и телефона мастеру некому звонить.
    Если хранилище молчит совсем, pdCall вернёт отказ сразу и попытки не затянутся. */
-async function pdSave(env, id, name, phone, note) {
+async function pdSave(env, id, name, phone, note, force) {
   for (let i = 0; i < 3; i++) {
-    const r = await pdCall(env, 'put', { id: id, name: name, phone: phone, note: note || '' });
+    const r = await pdCall(env, 'put', { id: id, name: name, phone: phone, note: note || '' }, PD_WRITE, force);
     if (r && r.ok) return true;
-    if (pdDown()) break;
+    if (!force && pdDown()) break;
     await new Promise(function (ok) {
       setTimeout(ok, 800);
     });
@@ -2750,6 +2781,7 @@ export default {
             cleanField(b.name, 80) || old.name || '',
             cleanField(b.phone, 30) || old.phone || '',
             cleanField(b.note, 200) || old.note || '',
+            true,
           );
           return json(
             ok ? { ok: true } : { ok: false, error: 'Хранилище пока недоступно — попробуйте позже' },

@@ -130,7 +130,7 @@ background:linear-gradient(135deg,#d4a5a5,#b27d7d)}
    Удачный адрес запоминается, чтобы не пробовать оба каждый раз. */
 var HOSTS=['https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net',
            'https://mk-bot.more-krasok-bot.workers.dev'];
-var FROM=480,TO=1200,STEP=30,DAYS_AHEAD=14,PARALLEL=4,WAIT=5000;
+var FROM=480,TO=1200,STEP=30,DAYS_AHEAD=14,PARALLEL=4,WAIT=10000;
 var KEY=null,day=null,data=null,pickStart=null,pickId=null;
 
 function hhmm(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
@@ -188,7 +188,12 @@ function one(host,path,opts){
 /* Чтение спрашиваем у обоих адресов разом и берём тот, что ответил первым:
    когда один из них молчит, ждать его очередь незачем. Запись (POST) так
    делать нельзя — получились бы две записи, поэтому там по очереди. */
+var bestHost=null; // адрес, который уже ответил в этот заход
+
 function get(path){
+  /* Как только один адрес ответил, ходим только к нему: иначе каждый из
+     полутора десятков запросов снова висит на молчащем адресе по пять секунд. */
+  if(bestHost)return one(bestHost,path).catch(function(){bestHost=null;return get(path)});
   var bad=load('bad')||{},now=Date.now();
   var hosts=HOSTS.filter(function(h){return !(bad[h]&&now-bad[h]<300000)});
   if(!hosts.length)hosts=HOSTS.slice();
@@ -196,7 +201,7 @@ function get(path){
   return new Promise(function(res,rej){
     hosts.forEach(function(h){
       one(h,path).then(function(r){
-        save('host',h);
+        bestHost=h;save('host',h);
         var b=load('bad')||{};delete b[h];save('bad',b);
         res(r);
       }).catch(function(e){
@@ -238,7 +243,7 @@ function refresh(){
     if(!d||d.error)return;
     if(d.услуги&&d.услуги.length)save('svc',d.услуги);
     data=d;saveDay(day,d);setOffline(false);render();
-  }).catch(function(){setOffline(true)});
+  }).catch(function(){setOffline(!loadDay(day))});
 }
 
 /* Заранее забираем три недели вперёд. Ради этого всё и делалось: когда
