@@ -1339,10 +1339,37 @@ render();
    а время записи не загружалось. Здесь запрос принимает Яндекс и передаёт
    дальше на Cloudflare, где логика и база. */
 var API='https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net';
-var SCHEDULE_URL=API+'/schedule.json';
-fetch(SCHEDULE_URL,{cache:'no-cache'}).then(function(r){
-  return r.ok?r.json():null;
-}).then(function(s){
+/* Запасной адрес сервера. В России он заблокирован, поэтому основной —
+   российский шлюз. Но когда шлюз молчит (а это уже случалось, и запись
+   переставала работать совсем), лучше достучаться хоть так, чем никак. */
+var API2='https://mk-bot.more-krasok-bot.workers.dev';
+
+function withTimeout(ms){
+  return (window.AbortSignal&&AbortSignal.timeout)?{signal:AbortSignal.timeout(ms)}:{};
+}
+/* Чтение спрашиваем у обоих адресов сразу и берём тот, что ответил первым. */
+function apiGet(path){
+  var fails=0;
+  return new Promise(function(res,rej){
+    [API,API2].forEach(function(h){
+      fetch(h+path,withTimeout(6000)).then(function(r){
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        return r.json();
+      }).then(res).catch(function(e){if(++fails===2)rej(e)});
+    });
+  });
+}
+/* Запись — по очереди: два адреса сразу создали бы две записи. */
+function apiPost(path,body){
+  function once(h){
+    return fetch(h+path,Object.assign({method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)},withTimeout(12000))).then(function(r){
+      return r.json().catch(function(){return null});
+    });
+  }
+  return once(API).catch(function(){return once(API2)});
+}
+apiGet('/schedule.json').then(function(s){
   if(!s||!s.off||typeof s.off!=='object')return;
   var months=Object.keys(s.off);
   if(!months.length)return;
@@ -1387,8 +1414,8 @@ function loadSlots(){
   resetSlots('Смотрю свободное время…');
   var svc=svcSel.value;
   Promise.all([
-    fetch(API+'/slots?day='+pickedDay+'&service='+encodeURIComponent(svc)).then(function(r){return r.json()}),
-    fetch(API+'/busy?day='+pickedDay).then(function(r){return r.json()})
+    apiGet('/slots?day='+pickedDay+'&service='+encodeURIComponent(svc)),
+    apiGet('/busy?day='+pickedDay)
   ]).then(function(res){
     var free=(res[0]&&res[0].slots)||[],busy=(res[1]&&res[1].busy)||[];
     if(!free.length&&!busy.length){resetSlots('На этот день свободного времени нет. Позвоните — подберём.');return;}
@@ -1454,14 +1481,8 @@ bform.addEventListener('submit',function(e){
   if(problem){bnote.className='bform-note err';bnote.textContent=problem;return;}
 
   btn.disabled=true;btn.querySelector('span').textContent='Записываю…';
-  fetch(API+'/book',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({name:name,phone:phone,service:svcSel.value,
-      day:pickedDay,start:pickedStart})
-  }).then(function(r){
-    return r.json().catch(function(){return null});
-  }).then(function(res){
+  apiPost('/book',{name:name,phone:phone,service:svcSel.value,
+    day:pickedDay,start:pickedStart}).then(function(res){
     if(res&&res.ok){
       bform.classList.add('sent');
       bnote.className='bform-note ok';
@@ -1484,7 +1505,7 @@ bform.addEventListener('submit',function(e){
      «не удалось» тому, кто уже записан, и не толкать его записаться дважды. */
   function lostAnswer(){
     var day=pickedDay,start=pickedStart;
-    fetch(API+'/busy?day='+day).then(function(r){return r.json()}).then(function(res){
+    apiGet('/busy?day='+day).then(function(res){
       var taken=((res&&res.busy)||[]).some(function(b){return b.min===start||hm(b.start)===start});
       if(!taken){fail();return;}
       bform.classList.add('sent');
