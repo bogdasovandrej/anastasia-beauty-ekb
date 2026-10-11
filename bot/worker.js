@@ -310,7 +310,7 @@ async function withPersonal(env, rows) {
   return rows.map(function (r) {
     const p = pd[r.id];
     return Object.assign({}, r, {
-      name: (p && p.name) || 'имя не загрузилось',
+      name: (p && p.name) || (pdDown() ? 'имя вернётся — сбой хранилища' : 'имя не загрузилось'),
       phone: (p && p.phone) || '',
       note: (p && p.note) || '',
     });
@@ -1581,17 +1581,19 @@ async function dayData(env, day, withServices) {
   )
     .bind(day)
     .all();
+  const rows = await withPersonal(env, r.results);
   return {
     day: day,
     подпись: ruDay(day),
     рабочий: await isWorkingDay(env, day),
+    хранилище: pdDown() ? 'недоступно' : 'ок',
     услуги:
       withServices === false
         ? []
         : SERVICE_NAMES.map(function (n, i) {
             return { имя: n, мин: DURATION[n], цена: PRICE[n], группа: CATALOG[SERVICE_CAT[i]].name };
           }),
-    записи: (await withPersonal(env, r.results)).map(function (b) {
+    записи: rows.map(function (b) {
       return {
         id: b.id,
         начало: b.start_min,

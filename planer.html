@@ -282,6 +282,17 @@ function render(){
   var p=day.split('-');
   document.getElementById('dt').textContent=cached?cached.подпись:(+p[2])+'.'+p[1];
   document.getElementById('cnt').textContent=cached?(cached.записи.length?cached.записи.length+' записи':'записей нет'):'загружаю…';
+  /* Когда хранилище имён молчит (так было 11 октября из-за аварии в Яндекс
+     Облаке), мастер видела записи без имён и не понимала, чьи они. Пишем
+     прямо, что случилось и где взять имя. */
+  var warn=document.getElementById('pdwarn');
+  if(!warn){warn=document.createElement('p');warn.id='pdwarn';
+    warn.style.cssText='margin:8px 12px;padding:10px 12px;border-radius:12px;background:#fef3c7;color:#92400e;font-size:13px;line-height:1.35';
+    var g0=document.getElementById('grid');g0.parentNode.insertBefore(warn,g0);}
+  if(cached&&cached.хранилище==='недоступно'){
+    warn.textContent='Имена и телефоны сейчас не загружаются: сбой в Яндекс Облаке. Записи на месте, имя каждой из них есть в сообщении бота. Когда хранилище поднимется, имена появятся сами.';
+    warn.hidden=false;
+  }else{warn.hidden=true}
   var wd=document.getElementById('wd');
   if(cached){wd.textContent=cached.рабочий?'рабочий день':'выходной';wd.className='badge '+(cached.рабочий?'w':'o')}
   else wd.textContent='';
