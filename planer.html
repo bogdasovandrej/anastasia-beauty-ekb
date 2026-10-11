@@ -124,7 +124,7 @@ background:linear-gradient(135deg,#d4a5a5,#b27d7d)}
    Удачный адрес запоминается, чтобы не пробовать оба каждый раз. */
 var HOSTS=['https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net',
            'https://mk-bot.more-krasok-bot.workers.dev'];
-var FROM=480,TO=1200,STEP=30,DAYS_AHEAD=21;
+var FROM=480,TO=1200,STEP=30,DAYS_AHEAD=14,PARALLEL=4,WAIT=8000;
 var KEY=null,day=null,data=null,pickStart=null,pickId=null;
 
 function hhmm(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
@@ -136,6 +136,18 @@ function shiftDay(d,n){var p=d.split('-');var x=new Date(Date.UTC(+p[0],+p[1]-1,
 // ---- память телефона ----
 function save(k,v){try{localStorage.setItem('mk_'+k,JSON.stringify(v))}catch(e){}}
 function load(k){try{var v=localStorage.getItem('mk_'+k);return v?JSON.parse(v):null}catch(e){return null}}
+function drop(k){try{localStorage.removeItem('mk_'+k)}catch(e){}}
+
+/* День из памяти телефона берём только если внутри лежит именно он.
+   Из-за отсутствия этой проверки планер мог показывать один и тот же день
+   на все даты: достаточно, чтобы однажды в память попал чужой ответ. */
+function loadDay(d){
+  var c=load('day_'+d);
+  if(c&&c.day===d&&c.записи)return c;
+  if(c)drop('day_'+d);
+  return null;
+}
+function saveDay(d,x){if(x&&!x.error&&x.day===d)save('day_'+d,x)}
 
 // ---- ключ доступа ----
 (function(){
@@ -156,48 +168,81 @@ document.getElementById('gateOk').onclick=function(){
 };
 
 // ---- сеть ----
+/* У запроса есть срок. Без него страница ждала ответа минутами, когда
+   шлюз в Облаке переставал отвечать: соединение не отвергалось, а висело. */
 function one(host,path,opts){
   var url=host+path+(path.indexOf('?')<0?'?':'&')+'key='+encodeURIComponent(KEY);
-  return fetch(url,opts).then(function(r){
+  var o=opts?Object.assign({},opts):{};
+  if(window.AbortSignal&&AbortSignal.timeout)o.signal=AbortSignal.timeout(WAIT);
+  return fetch(url,o).then(function(r){
     if(!r.ok)throw new Error('HTTP '+r.status);
     return r.json();   // шлюз без нужного пути отдаёт текст — разбор упадёт, и мы уйдём на запасной
   });
 }
+/* Адрес, который только что не ответил, пропускаем пять минут: иначе каждый
+   из полутора десятков запросов снова ждёт его полный срок. */
 function api(path,opts){
-  var order=HOSTS.slice(),good=load('host');
+  var bad=load('bad')||{},now=Date.now(),good=load('host');
+  var order=HOSTS.filter(function(h){return !(bad[h]&&now-bad[h]<300000)});
+  if(!order.length)order=HOSTS.slice();
   if(good&&order.indexOf(good)>0)order=[good].concat(order.filter(function(h){return h!==good}));
-  return one(order[0],path,opts).then(function(r){save('host',order[0]);return r})
-    .catch(function(){
-      return one(order[1],path,opts).then(function(r){save('host',order[1]);return r});
+  function attempt(i){
+    return one(order[i],path,opts).then(function(r){
+      save('host',order[i]);
+      var b=load('bad')||{};delete b[order[i]];save('bad',b);
+      return r;
+    }).catch(function(e){
+      var b=load('bad')||{};b[order[i]]=Date.now();save('bad',b);
+      if(i+1<order.length)return attempt(i+1);
+      throw e;
     });
+  }
+  return attempt(0);
 }
 function setOffline(on){document.getElementById('off').classList.toggle('on',on)}
 
+/* Прайс один на все дни — просим его, только если ещё не лежит в телефоне.
+   Раньше список из 43 услуг приходил в каждом из двадцати запросов. */
+function dayUrl(d){return '/planer/data?day='+d+(load('svc')?'&svc=0':'')}
+
 function refresh(){
-  return api('/planer/data?day='+day).then(function(d){
+  return api(dayUrl(day)).then(function(d){
     if(!d||d.error)return;
-    data=d;save('day_'+day,d);setOffline(false);render();
+    if(d.услуги&&d.услуги.length)save('svc',d.услуги);
+    data=d;saveDay(day,d);setOffline(false);render();
   }).catch(function(){setOffline(true)});
 }
 
 /* Заранее забираем три недели вперёд. Ради этого всё и делалось: когда
    клиентка звонит и спрашивает «когда есть окно», мастер открывает планер
    и листает дни, даже если сети нет. */
+/* Заранее забираем две недели вперёд. Ради этого всё и делалось: когда
+   клиентка звонит и спрашивает «когда есть окно», мастер открывает планер
+   и листает дни, даже если сети нет.
+   Дни идут по четыре разом, а не один за другим: очередь из двадцати
+   запросов по секунде складывалась в полминуты, и всё это время страница
+   казалась зависшей. Полоска дней обновляется по мере ответов. */
 function prefetch(){
-  var d=day,chain=Promise.resolve();
-  for(var i=1;i<=DAYS_AHEAD;i++){
-    (function(dd){chain=chain.then(function(){
-      return api('/planer/data?day='+dd).then(function(x){if(x&&!x.error)save('day_'+dd,x)}).catch(function(){});
-    })})(d=shiftDay(d,1));
+  var list=[],d=day;
+  for(var i=1;i<=DAYS_AHEAD;i++)list.push(d=shiftDay(d,1));
+  var at=0;
+  function next(){
+    if(at>=list.length)return Promise.resolve();
+    var dd=list[at++];
+    return api(dayUrl(dd)).then(function(x){
+      if(x&&!x.error){if(x.услуги&&x.услуги.length)save('svc',x.услуги);saveDay(dd,x);drawStrip()}
+    }).catch(function(){}).then(next);
   }
-  chain.then(drawStrip);
+  var pool=[];
+  for(var j=0;j<PARALLEL;j++)pool.push(next());
+  return Promise.all(pool).then(drawStrip);
 }
 
 // ---- отрисовка ----
 function drawStrip(){
   var s=document.getElementById('strip'),html='',d=today();
   for(var i=0;i<14;i++){
-    var c=load('day_'+d),n=c&&c.записи?c.записи.length:0;
+    var c=loadDay(d),n=c&&c.записи?c.записи.length:0;
     var cls=d===day?'on':(c&&c.рабочий===false?'off':'');
     var p=d.split('-');
     html+='<button class="day '+cls+'" data-d="'+d+'"><b>'+(+p[2])+'</b>'+
@@ -210,7 +255,7 @@ function drawStrip(){
 }
 
 function render(){
-  var cached=data&&data.day===day?data:load('day_'+day);
+  var cached=data&&data.day===day?data:loadDay(day);
   if(cached)data=cached;
   var p=day.split('-');
   document.getElementById('dt').textContent=cached?cached.подпись:(+p[2])+'.'+p[1];
@@ -218,15 +263,17 @@ function render(){
   var wd=document.getElementById('wd');
   if(cached){wd.textContent=cached.рабочий?'рабочий день':'выходной';wd.className='badge '+(cached.рабочий?'w':'o')}
   else wd.textContent='';
-  if(cached){
-    var sel=document.getElementById('svc');
-    // услуги сгруппированы по категориям — в прайсе их 45, плоским списком не найти
+  var svcList=(cached&&cached.услуги&&cached.услуги.length)?cached.услуги:load('svc');
+  var sel=document.getElementById('svc');
+  if(svcList&&sel.dataset.n!=String(svcList.length)){
+    // услуги сгруппированы по категориям — в прайсе их 43, плоским списком не найти
     var groups={},order=[];
-    cached.услуги.forEach(function(x){var g=x.группа||'Услуги';if(!groups[g]){groups[g]=[];order.push(g)}groups[g].push(x)});
+    svcList.forEach(function(x){var g=x.группа||'Услуги';if(!groups[g]){groups[g]=[];order.push(g)}groups[g].push(x)});
     sel.innerHTML=order.map(function(g){
       return '<optgroup label="'+g+'">'+groups[g].map(function(x){
         return '<option value="'+x.имя+'">'+x.имя+' · '+x.мин+' мин</option>'}).join('')+'</optgroup>';
     }).join('');
+    sel.dataset.n=String(svcList.length);
   }
   drawStrip();
   var g=document.getElementById('grid');
@@ -279,14 +326,23 @@ document.getElementById('infoClose').onclick=function(){document.getElementById(
 document.getElementById('addOk').onclick=function(){
   var body={start:pickStart,service:document.getElementById('svc').value,
     name:document.getElementById('nm').value.trim(),phone:document.getElementById('ph').value.trim()};
+  var ok=document.getElementById('addOk');ok.disabled=true;
   api('/planer/add?day='+day,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){
-      if(r&&r.ok){document.getElementById('add').close();
+      ok.disabled=false;
+      if(r&&r.ok){
+        /* Сервер отвечает «безИмени», когда запись создана, а хранилище имён
+           недоступно. Молчать об этом нельзя: в списке будет «имя
+           не загрузилось», и мастер не поймёт, почему. */
+        if(r.безИмени){var w=document.getElementById('addMsg');w.className='msg err';
+          w.textContent='Записала на это время, но имя и телефон не сохранились: хранилище недоступно. Впишите их позже.';
+          document.getElementById('nm').value='';document.getElementById('ph').value='';refresh();return}
+        document.getElementById('add').close();
         document.getElementById('nm').value='';document.getElementById('ph').value='';refresh()}
       else{var m=document.getElementById('addMsg');m.className='msg err';
         m.textContent=(r&&r.error)||'Не получилось'}
     })
-    .catch(function(){var m=document.getElementById('addMsg');m.className='msg err';
+    .catch(function(){ok.disabled=false;var m=document.getElementById('addMsg');m.className='msg err';
       m.textContent='Нет сети. Записать можно только с интернетом'});
 };
 document.getElementById('infoDel').onclick=function(){

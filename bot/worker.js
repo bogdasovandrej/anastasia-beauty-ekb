@@ -226,21 +226,31 @@ async function applyTap(env, data) {
    недоступности хранилища хуже, чем показать «имя не загрузилось». */
 
 let pdLastError = null; // последняя ошибка обращения к хранилищу — для диагностики
+let pdDownUntil = 0; // хранилище молчит — до этого времени туда не ходим
 const PD_URL = 'https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net/pd/';
+const PD_TIMEOUT = 4000; // ждать ответа дольше нельзя: на том конце планер мастера
+const PD_PAUSE = 60000; // после отказа делаем паузу, чтобы не ждать таймаут в каждом запросе
 
+/* Когда Облако недоступно, каждый вызов висел до победного, а планеру нужны
+   имена сразу для всего дня — страница открывалась двадцать секунд и дольше.
+   Теперь у запроса есть срок, а после отказа минуту к хранилищу не обращаемся:
+   день рисуется мгновенно, только вместо имён «имя не загрузилось». */
 async function pdCall(env, action, body) {
   if (!env.PD_KEY) return null;
+  if (Date.now() < pdDownUntil) return null;
   try {
     const r = await fetch(PD_URL + action, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Pd-Key': env.PD_KEY },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(PD_TIMEOUT),
     });
     if (!r.ok) {
       // текст ответа сохраняем: по нему видно, отказ это по ключу или ошибка бакета
       const text = (await r.text()).slice(0, 200);
       console.log('pd/' + action + ': HTTP ' + r.status + ' ' + text);
       pdLastError = 'HTTP ' + r.status + ': ' + text;
+      pdDownUntil = Date.now() + PD_PAUSE;
       return null;
     }
     pdLastError = null;
@@ -248,16 +258,23 @@ async function pdCall(env, action, body) {
   } catch (e) {
     console.log('pd/' + action + ': ' + e.message);
     pdLastError = e.message;
+    pdDownUntil = Date.now() + PD_PAUSE;
     return null;
   }
 }
 
+function pdDown() {
+  return Date.now() < pdDownUntil;
+}
+
 /* До трёх попыток: хранилище в Облаке после простоя просыпается секунду-другую,
-   и первая попытка может не пройти. Без имени и телефона мастеру некому звонить. */
+   и первая попытка может не пройти. Без имени и телефона мастеру некому звонить.
+   Если хранилище молчит совсем, pdCall вернёт отказ сразу и попытки не затянутся. */
 async function pdSave(env, id, name, phone, note) {
   for (let i = 0; i < 3; i++) {
     const r = await pdCall(env, 'put', { id: id, name: name, phone: phone, note: note || '' });
     if (r && r.ok) return true;
+    if (pdDown()) break;
     await new Promise(function (ok) {
       setTimeout(ok, 800);
     });
@@ -473,6 +490,20 @@ async function createBooking(env, body, ctx) {
     return { ok: false, error: 'Это время уже прошло' };
   }
 
+  /* Та же услуга, тот же день и час, записана минуту назад — это не вторая
+     клиентка, а второе нажатие: ответ не дошёл, и человек нажал ещё раз.
+     Раньше он получал «время уже заняли» на собственную же запись. */
+  const same = await env.DB.prepare(
+    'SELECT id, start_min, end_min FROM bookings ' +
+      "WHERE day = ? AND start_min = ? AND service = ? AND status != 'cancelled' AND created_at > ? " +
+      'ORDER BY id DESC LIMIT 1',
+  )
+    .bind(day, start, service, new Date(Date.now() - 180000).toISOString())
+    .first();
+  if (same) {
+    return { ok: true, id: same.id, start: hhmm(same.start_min), end: hhmm(same.end_min), повтор: true };
+  }
+
   const busy = await busyOn(env, day);
   if (
     busy.some(function (b) {
@@ -501,13 +532,15 @@ async function createBooking(env, body, ctx) {
     .run();
 
   const id = res.meta.last_row_id;
-  const tail = Promise.all([
-    // имя и телефон — в российское хранилище, отдельным обращением
-    pdSave(env, id, name, phone, ''),
-    // если запись завела сама мастер — уведомлять её о ней же незачем
-    body.silent
-      ? null
-      : notifyMaster(env, {
+  /* Имя и телефон — в российское хранилище. Ждём ответа: у вызова есть срок
+     в несколько секунд, а если хранилище молчит, отказ приходит сразу. Зато
+     мастер сразу видит, сохранилось имя или нет. */
+  const saved = await pdSave(env, id, name, phone, '');
+  // если запись завела сама мастер — уведомлять её о ней же незачем
+  const tail = body.silent
+    ? null
+    : Promise.resolve(
+        notifyMaster(env, {
           id: id,
           day: day,
           start: start,
@@ -516,12 +549,16 @@ async function createBooking(env, body, ctx) {
           name: name,
           phone: phone,
         }),
-  ]).catch(function (e) {
-    console.log('После записи ' + id + ': ' + e.message);
-  });
-  if (ctx) ctx.waitUntil(tail);
-  else await tail;
-  return { ok: true, id: id, start: hhmm(start), end: hhmm(start + dur) };
+      ).catch(function (e) {
+        console.log('Уведомление о записи ' + id + ': ' + e.message);
+      });
+  if (tail) {
+    if (ctx) ctx.waitUntil(tail);
+    else await tail;
+  }
+  const out = { ok: true, id: id, start: hhmm(start), end: hhmm(start + dur) };
+  if (!saved) out.безИмени = 'Имя и телефон не сохранились — хранилище недоступно';
+  return out;
 }
 
 function bookingText(b) {
@@ -1533,7 +1570,11 @@ async function planerKey(env) {
   return k;
 }
 
-async function dayData(env, day) {
+/* svc=0 — не класть в ответ прайс. Планер запрашивает дни на две недели
+   вперёд, и список из 43 услуг в каждом дне — это почти весь объём ответа,
+   хотя он один и тот же. По умолчанию прайс остаётся: его ждут старые
+   версии страницы, сохранённые в телефоне. */
+async function dayData(env, day, withServices) {
   const r = await env.DB.prepare(
     'SELECT id, start_min, end_min, service FROM bookings ' +
       "WHERE day = ? AND status != 'cancelled' ORDER BY start_min",
@@ -1544,9 +1585,12 @@ async function dayData(env, day) {
     day: day,
     подпись: ruDay(day),
     рабочий: await isWorkingDay(env, day),
-    услуги: SERVICE_NAMES.map(function (n, i) {
-      return { имя: n, мин: DURATION[n], цена: PRICE[n], группа: CATALOG[SERVICE_CAT[i]].name };
-    }),
+    услуги:
+      withServices === false
+        ? []
+        : SERVICE_NAMES.map(function (n, i) {
+            return { имя: n, мин: DURATION[n], цена: PRICE[n], группа: CATALOG[SERVICE_CAT[i]].name };
+          }),
     записи: (await withPersonal(env, r.results)).map(function (b) {
       return {
         id: b.id,
@@ -2668,7 +2712,8 @@ export default {
         const day = url.searchParams.get('day') || nowEkb().day;
         if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json({ error: 'Нужен день' }, 400, cors);
 
-        if (path === '/planer/data') return json(await dayData(env, day), 200, cors);
+        if (path === '/planer/data')
+          return json(await dayData(env, day, url.searchParams.get('svc') !== '0'), 200, cors);
 
         if (path === '/planer/add' && request.method === 'POST') {
           const b = await request.json().catch(function () {

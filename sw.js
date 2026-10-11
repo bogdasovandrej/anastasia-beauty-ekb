@@ -3,7 +3,7 @@
    Саму страницу и оформление держим в кэше и отдаём сразу, а обновление
    подтягиваем в фоне. Запросы к серверу через кэш не идут — их данные
    планер сам складывает в память телефона. */
-var CACHE = 'mk-planer-v1';
+var CACHE = 'mk-planer-v3';
 var FILES = ['planer.html', 'manifest.webmanifest', 'images/logo.jpg', 'favicon.svg'];
 
 self.addEventListener('install', function (e) {
@@ -20,10 +20,30 @@ self.addEventListener('activate', function (e) {
   }).then(function () { return self.clients.claim(); }));
 });
 
+/* Саму страницу берём из сети, а кэш держим на случай, когда сети нет.
+   Раньше страница отдавалась из кэша, и исправления доходили до телефона
+   только со следующего открытия, а то и позже. Картинки и значок —
+   наоборот, сразу из кэша: они не меняются. */
 self.addEventListener('fetch', function (e) {
   var url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
   if (url.origin !== location.origin) return;   // данные с сервера не кэшируем
+
+  var isPage = e.request.mode === 'navigate' || /\.html$/.test(url.pathname);
+  if (isPage) {
+    e.respondWith(
+      fetch(e.request).then(function (r) {
+        if (r && r.ok) caches.open(CACHE).then(function (c) { c.put(e.request, r.clone()); });
+        return r;
+      }).catch(function () {
+        return caches.match(e.request).then(function (hit) {
+          return hit || caches.match('planer.html');
+        });
+      }),
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request).then(function (hit) {
       var live = fetch(e.request).then(function (r) {
