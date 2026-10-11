@@ -302,7 +302,9 @@ function pdDown() {
    и первая попытка может не пройти. Без имени и телефона мастеру некому звонить.
    Если хранилище молчит совсем, pdCall вернёт отказ сразу и попытки не затянутся. */
 async function pdSave(env, id, name, phone, note, force) {
-  for (let i = 0; i < 3; i++) {
+  // по нажатию мастера — одна попытка: она ждёт ответа и не должна сидеть полминуты
+  const tries = force ? 1 : 3;
+  for (let i = 0; i < tries; i++) {
     const r = await pdCall(env, 'put', { id: id, name: name, phone: phone, note: note || '' }, PD_WRITE, force);
     if (r && r.ok) return true;
     if (!force && pdDown()) break;
