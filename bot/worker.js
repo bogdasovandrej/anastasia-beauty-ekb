@@ -2733,6 +2733,31 @@ export default {
           return json(res, res.ok ? 200 : 400, cors);
         }
 
+        /* Вписать имя и телефон в уже созданную запись. Нужно после сбоя
+           хранилища: запись в такие минуты создаётся, а имя сохранить
+           некуда, и мастер вписывает его потом вручную. */
+        if (path === '/planer/name' && request.method === 'POST') {
+          const b = await request.json().catch(function () {
+            return {};
+          });
+          const id = parseInt(b.id, 10);
+          const row = await env.DB.prepare('SELECT id FROM bookings WHERE id = ?').bind(id).first();
+          if (!row) return json({ ok: false, error: 'Запись не найдена' }, 404, cors);
+          const old = (await pdLoad(env, id)) || {};
+          const ok = await pdSave(
+            env,
+            id,
+            cleanField(b.name, 80) || old.name || '',
+            cleanField(b.phone, 30) || old.phone || '',
+            cleanField(b.note, 200) || old.note || '',
+          );
+          return json(
+            ok ? { ok: true } : { ok: false, error: 'Хранилище пока недоступно — попробуйте позже' },
+            ok ? 200 : 503,
+            cors,
+          );
+        }
+
         if (path === '/planer/cancel' && request.method === 'POST') {
           const b = await request.json().catch(function () {
             return {};

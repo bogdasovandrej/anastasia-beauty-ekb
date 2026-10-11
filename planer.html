@@ -103,7 +103,13 @@ background:linear-gradient(135deg,#d4a5a5,#b27d7d)}
 <dialog id="info"><div class="dlg">
   <h3 id="infoTitle">Запись</h3>
   <div id="infoBody"></div>
+  <div id="infoEdit" hidden>
+    <input id="enm" placeholder="Имя" maxlength="80">
+    <input id="eph" placeholder="Телефон" maxlength="30" inputmode="tel">
+    <p id="editMsg" class="msg"></p>
+  </div>
   <div class="btns"><button type="button" class="gray" id="infoClose">Закрыть</button>
+  <button type="button" class="gray" id="infoEditBtn">Вписать имя</button>
   <button type="button" class="red" id="infoDel">Отменить запись</button></div>
 </div></dialog>
 
@@ -351,10 +357,31 @@ document.getElementById('grid').addEventListener('click',function(e){
     document.getElementById('infoBody').innerHTML='<p>'+esc(b.услуга)+'<br>'+b.время+'</p>'+
       '<p style="margin-top:8px"><a href="tel:'+esc(b.телефон)+'">'+esc(b.телефон)+'</a></p>'+
       (b.пометка?'<p style="margin-top:8px;color:#57534e">'+esc(b.пометка)+'</p>':'');
+    var eb=document.getElementById('infoEditBtn');eb.textContent='Вписать имя';
+    document.getElementById('infoEdit').hidden=true;
+    document.getElementById('editMsg').textContent='';
+    document.getElementById('enm').value=/загрузилось|вернётся/.test(b.имя)?'':b.имя;
+    document.getElementById('eph').value=b.телефон||'';
     document.getElementById('info').showModal()}
 });
 document.getElementById('addCancel').onclick=function(){document.getElementById('add').close()};
 document.getElementById('infoClose').onclick=function(){document.getElementById('info').close()};
+
+/* Имя можно вписать и позже: если во время сбоя хранилища запись
+   создалась без имени, мастер открывает её и дописывает. */
+document.getElementById('infoEditBtn').onclick=function(){
+  var box=document.getElementById('infoEdit');
+  if(box.hidden){box.hidden=false;this.textContent='Сохранить имя';document.getElementById('enm').focus();return}
+  var msg=document.getElementById('editMsg');msg.className='msg';msg.textContent='Сохраняю…';
+  api('/planer/name?day='+day,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:pickId,name:document.getElementById('enm').value.trim(),
+      phone:document.getElementById('eph').value.trim()})})
+    .then(function(r){
+      if(r&&r.ok){document.getElementById('info').close();refresh()}
+      else{msg.className='msg err';msg.textContent=(r&&r.error)||'Не получилось'}
+    })
+    .catch(function(){msg.className='msg err';msg.textContent='Хранилище пока недоступно — попробуйте позже'});
+};
 
 document.getElementById('addOk').onclick=function(){
   var body={start:pickStart,service:document.getElementById('svc').value,
