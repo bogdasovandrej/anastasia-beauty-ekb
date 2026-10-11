@@ -130,7 +130,7 @@ background:linear-gradient(135deg,#d4a5a5,#b27d7d)}
    Удачный адрес запоминается, чтобы не пробовать оба каждый раз. */
 var HOSTS=['https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net',
            'https://mk-bot.more-krasok-bot.workers.dev'];
-var FROM=480,TO=1200,STEP=30,DAYS_AHEAD=14,PARALLEL=4,WAIT=10000;
+var FROM=480,TO=1200,STEP=30,DAYS_AHEAD=14,PARALLEL=4,WAIT=10000,RACE=4000;
 var KEY=null,day=null,data=null,pickStart=null,pickId=null;
 
 function hhmm(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
@@ -176,10 +176,10 @@ document.getElementById('gateOk').onclick=function(){
 // ---- сеть ----
 /* У запроса есть срок. Без него страница ждала ответа минутами, когда
    шлюз в Облаке переставал отвечать: соединение не отвергалось, а висело. */
-function one(host,path,opts){
+function one(host,path,opts,ms){
   var url=host+path+(path.indexOf('?')<0?'?':'&')+'key='+encodeURIComponent(KEY);
   var o=opts?Object.assign({},opts):{};
-  if(window.AbortSignal&&AbortSignal.timeout)o.signal=AbortSignal.timeout(WAIT);
+  if(window.AbortSignal&&AbortSignal.timeout)o.signal=AbortSignal.timeout(ms||WAIT);
   return fetch(url,o).then(function(r){
     if(!r.ok)throw new Error('HTTP '+r.status);
     return r.json();   // шлюз без нужного пути отдаёт текст — разбор упадёт, и мы уйдём на запасной
@@ -200,7 +200,8 @@ function get(path){
   var fails=0;
   return new Promise(function(res,rej){
     hosts.forEach(function(h){
-      one(h,path).then(function(r){
+      // пока адрес не выбран, ждём недолго: один из двух может молчать
+      one(h,path,null,RACE).then(function(r){
         bestHost=h;save('host',h);
         var b=load('bad')||{};delete b[h];save('bad',b);
         res(r);
