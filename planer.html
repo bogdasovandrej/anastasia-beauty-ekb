@@ -124,7 +124,7 @@ background:linear-gradient(135deg,#d4a5a5,#b27d7d)}
    Удачный адрес запоминается, чтобы не пробовать оба каждый раз. */
 var HOSTS=['https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net',
            'https://mk-bot.more-krasok-bot.workers.dev'];
-var FROM=480,TO=1200,STEP=30,DAYS_AHEAD=14,PARALLEL=4,WAIT=8000;
+var FROM=480,TO=1200,STEP=30,DAYS_AHEAD=14,PARALLEL=4,WAIT=5000;
 var KEY=null,day=null,data=null,pickStart=null,pickId=null;
 
 function hhmm(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
@@ -179,6 +179,28 @@ function one(host,path,opts){
     return r.json();   // шлюз без нужного пути отдаёт текст — разбор упадёт, и мы уйдём на запасной
   });
 }
+/* Чтение спрашиваем у обоих адресов разом и берём тот, что ответил первым:
+   когда один из них молчит, ждать его очередь незачем. Запись (POST) так
+   делать нельзя — получились бы две записи, поэтому там по очереди. */
+function get(path){
+  var bad=load('bad')||{},now=Date.now();
+  var hosts=HOSTS.filter(function(h){return !(bad[h]&&now-bad[h]<300000)});
+  if(!hosts.length)hosts=HOSTS.slice();
+  var fails=0;
+  return new Promise(function(res,rej){
+    hosts.forEach(function(h){
+      one(h,path).then(function(r){
+        save('host',h);
+        var b=load('bad')||{};delete b[h];save('bad',b);
+        res(r);
+      }).catch(function(e){
+        var b=load('bad')||{};b[h]=Date.now();save('bad',b);
+        if(++fails===hosts.length)rej(e);
+      });
+    });
+  });
+}
+
 /* Адрес, который только что не ответил, пропускаем пять минут: иначе каждый
    из полутора десятков запросов снова ждёт его полный срок. */
 function api(path,opts){
@@ -206,7 +228,7 @@ function setOffline(on){document.getElementById('off').classList.toggle('on',on)
 function dayUrl(d){return '/planer/data?day='+d+(load('svc')?'&svc=0':'')}
 
 function refresh(){
-  return api(dayUrl(day)).then(function(d){
+  return get(dayUrl(day)).then(function(d){
     if(!d||d.error)return;
     if(d.услуги&&d.услуги.length)save('svc',d.услуги);
     data=d;saveDay(day,d);setOffline(false);render();
@@ -229,7 +251,7 @@ function prefetch(){
   function next(){
     if(at>=list.length)return Promise.resolve();
     var dd=list[at++];
-    return api(dayUrl(dd)).then(function(x){
+    return get(dayUrl(dd)).then(function(x){
       if(x&&!x.error){if(x.услуги&&x.услуги.length)save('svc',x.услуги);saveDay(dd,x);drawStrip()}
     }).catch(function(){}).then(next);
   }
