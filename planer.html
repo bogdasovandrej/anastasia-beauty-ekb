@@ -153,7 +153,28 @@ function loadDay(d){
   if(c)drop('day_'+d);
   return null;
 }
-function saveDay(d,x){if(x&&!x.error&&x.day===d)save('day_'+d,x)}
+var NONAME=/не загрузилось|вернётся/;
+
+/* Хранилище имён отвечает через раз, и ответ без имён затирал те, что уже
+   были показаны: мастер видела имена секунд пять, потом они пропадали.
+   Имя, которое мы однажды получили, держим в памяти телефона и подставляем,
+   пока сервер не пришлёт настоящее. */
+function mergeNames(d,fresh){
+  var old=load('day_'+d);
+  if(!old||!old.записи||!fresh||!fresh.записи)return fresh;
+  var by={};
+  old.записи.forEach(function(b){if(b.имя&&!NONAME.test(b.имя))by[b.id]=b});
+  fresh.записи.forEach(function(b){
+    var p=by[b.id];
+    if(p&&NONAME.test(b.имя||'')){
+      b.имя=p.имя;
+      if(!b.телефон)b.телефон=p.телефон||'';
+      if(!b.пометка)b.пометка=p.пометка||'';
+    }
+  });
+  return fresh;
+}
+function saveDay(d,x){if(x&&!x.error&&x.day===d)save('day_'+d,mergeNames(d,x))}
 
 // ---- ключ доступа ----
 (function(){
@@ -243,7 +264,7 @@ function refresh(){
   return get(dayUrl(day)).then(function(d){
     if(!d||d.error)return;
     if(d.услуги&&d.услуги.length)save('svc',d.услуги);
-    data=d;saveDay(day,d);setOffline(false);render();
+    saveDay(day,d);data=loadDay(day)||d;setOffline(false);render();
   }).catch(function(){setOffline(!loadDay(day))});
 }
 
@@ -301,8 +322,9 @@ function render(){
   if(!warn){warn=document.createElement('p');warn.id='pdwarn';
     warn.style.cssText='margin:8px 12px;padding:10px 12px;border-radius:12px;background:#fef3c7;color:#92400e;font-size:13px;line-height:1.35';
     var g0=document.getElementById('grid');g0.parentNode.insertBefore(warn,g0);}
-  if(cached&&cached.хранилище==='недоступно'){
-    warn.textContent='Имена и телефоны сейчас не загружаются: сбой в Яндекс Облаке. Записи на месте, имя каждой из них есть в сообщении бота. Когда хранилище поднимется, имена появятся сами.';
+  var noName=cached&&cached.записи&&cached.записи.some(function(b){return NONAME.test(b.имя||'')});
+  if(noName){
+    warn.textContent='У части записей не загрузилось имя: хранилище в Яндекс Облаке отвечает с перебоями после аварии. Записи на месте, имя есть в сообщении бота. Потяните страницу вниз, чтобы обновить, — обычно со второго раза имя приходит.';
     warn.hidden=false;
   }else{warn.hidden=true}
   var wd=document.getElementById('wd');

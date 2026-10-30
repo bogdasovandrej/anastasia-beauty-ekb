@@ -228,10 +228,11 @@ async function applyTap(env, data) {
 let pdLastError = null; // последняя ошибка обращения к хранилищу — для диагностики
 let pdDownUntil = 0; // хранилище молчит — до этого времени туда не ходим
 let pdCheckedUntil = 0; // когда в последний раз сверялись с отметкой в базе
+let pdFails = 0; // отказы подряд
 const PD_URL = 'https://d5dlpkp30bicbqp0edul.7qsg961h.apigw.yandexcloud.net/pd/';
-const PD_READ = 1500; // чтение имён: планер ждёт ответа и не может висеть
-const PD_WRITE = 4000; // запись имени: тут лучше подождать, чем потерять
-const PD_PAUSE = 60000; // после отказа делаем паузу, чтобы не ждать таймаут в каждом запросе
+const PD_READ = 3000; // чтение имён: хранилище после простоя отвечает за секунду с лишним
+const PD_WRITE = 5000; // запись имени: тут лучше подождать, чем потерять
+const PD_PAUSE = 20000; // после двух отказов подряд делаем паузу, чтобы не ждать таймаут каждый раз
 
 /* Отметку о сбое держим в базе, а не только в памяти: каждый запрос может
    попасть на свежий обработчик, и тот снова ждал бы таймаут. Из-за этого
@@ -252,7 +253,11 @@ async function pdDownNow(env) {
   return false;
 }
 
+/* Паузу берём не с первого отказа, а со второго подряд: хранилище после
+   аварии отвечает через раз, и из-за одной неудачи имена пропадали у всех
+   на целую минуту — мастер видела их секунду и дальше пустые записи. */
 async function pdNoteDown(env) {
+  if (++pdFails < 2) return;
   pdDownUntil = Date.now() + PD_PAUSE;
   try {
     await setSetting(env, 'pd_down_until', String(pdDownUntil));
@@ -285,6 +290,7 @@ async function pdCall(env, action, body, ms, force) {
       return null;
     }
     pdLastError = null;
+    pdFails = 0;
     return await r.json();
   } catch (e) {
     console.log('pd/' + action + ': ' + e.message);
@@ -325,7 +331,9 @@ async function pdLoad(env, id) {
    а не по одной записи за раз. */
 async function pdLoadMany(env, ids) {
   if (!ids.length) return {};
-  const r = await pdCall(env, 'many', { ids: ids });
+  // вторая попытка: после аварии хранилище часто отвечает только со второго раза
+  let r = await pdCall(env, 'many', { ids: ids });
+  if (!(r && r.data) && !pdDown()) r = await pdCall(env, 'many', { ids: ids });
   return (r && r.data) || {};
 }
 
