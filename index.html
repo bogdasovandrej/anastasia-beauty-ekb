@@ -1364,6 +1364,10 @@ function apiPost(path,body){
   function once(h){
     return fetch(h+path,Object.assign({method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(body)},withTimeout(12000))).then(function(r){
+      /* Ошибка самого шлюза (500) — повод спросить второй адрес. Отказ по делу
+         (400: «в этот день мастер не работает») — готовый ответ, его отдаём как есть.
+         Без этой проверки сайт показывал клиенту «сервис недоступен» вместо записи. */
+      if(r.status>=500)throw new Error('HTTP '+r.status);
       return r.json().catch(function(){return null});
     });
   }
