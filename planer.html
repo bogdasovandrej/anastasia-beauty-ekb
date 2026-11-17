@@ -149,32 +149,71 @@ function drop(k){try{localStorage.removeItem('mk_'+k)}catch(e){}}
    на все даты: достаточно, чтобы однажды в память попал чужой ответ. */
 function loadDay(d){
   var c=load('day_'+d);
-  if(c&&c.day===d&&c.записи)return c;
+  if(c&&c.day===d&&c.записи)return applyNames(c);
   if(c)drop('day_'+d);
   return null;
 }
 var NONAME=/не загрузилось|вернётся/;
 
-/* Хранилище имён отвечает через раз, и ответ без имён затирал те, что уже
-   были показаны: мастер видела имена секунд пять, потом они пропадали.
-   Имя, которое мы однажды получили, держим в памяти телефона и подставляем,
-   пока сервер не пришлёт настоящее. */
-function mergeNames(d,fresh){
-  var old=load('day_'+d);
-  if(!old||!old.записи||!fresh||!fresh.записи)return fresh;
-  var by={};
-  old.записи.forEach(function(b){if(b.имя&&!NONAME.test(b.имя))by[b.id]=b});
-  fresh.записи.forEach(function(b){
-    var p=by[b.id];
+/* Отдельная память имён, по номеру записи. Хранилище имён в Облаке лежит
+   неделями, и ответ без имени затирал то, что уже было показано: мастер
+   видела имя пару секунд, потом «имя вернётся — сбой хранилища».
+   Сюда имя попадает один раз и остаётся, пока запись не отменят.
+   Память отдельная от дней: день мог перезаписаться пустым ответом. */
+function rememberNames(x){
+  if(!x||!x.записи||!x.записи.length)return;
+  var m=load('names')||{},было=JSON.stringify(m);
+  x.записи.forEach(function(b){
+    if(b.имя&&!NONAME.test(b.имя))m[b.id]={н:b.имя,т:b.телефон||'',п:b.пометка||''};
+  });
+  var ids=Object.keys(m);
+  if(ids.length>600)ids.sort(function(a,c){return a-c}).slice(0,ids.length-600).forEach(function(k){delete m[k]});
+  if(JSON.stringify(m)!==было)save('names',m);
+}
+function applyNames(x){
+  if(!x||!x.записи)return x;
+  var m=load('names')||{};
+  x.записи.forEach(function(b){
+    var p=m[b.id];
     if(p&&NONAME.test(b.имя||'')){
-      b.имя=p.имя;
-      if(!b.телефон)b.телефон=p.телефон||'';
-      if(!b.пометка)b.пометка=p.пометка||'';
+      b.имя=p.н;
+      if(!b.телефон)b.телефон=p.т||'';
+      if(!b.пометка)b.пометка=p.п||'';
+      b.изПамяти=true;
     }
   });
-  return fresh;
+  return x;
 }
-function saveDay(d,x){if(x&&!x.error&&x.day===d)save('day_'+d,mergeNames(d,x))}
+function saveDay(d,x){
+  if(!x||x.error||x.day!==d)return;
+  rememberNames(x);
+  save('day_'+d,applyNames(x));
+}
+
+/* Имя, введённое мастером, пока хранилище молчит: держим его в телефоне,
+   чтобы оно было видно, и в очереди — чтобы отправить, когда хранилище
+   поднимется. Иначе запись навсегда осталась бы без имени. */
+function keepName(id,имя,телефон,вОчередь){
+  if(!id||!имя)return;
+  var m=load('names')||{};m[id]={н:имя,т:телефон||'',п:''};save('names',m);
+  if(вОчередь){var q=load('pending')||{};q[id]={н:имя,т:телефон||''};save('pending',q)}
+}
+
+/* Отправляем накопленные имена, как только сервер сказал, что хранилище ожило. */
+function flushNames(){
+  var q=load('pending')||{},ids=Object.keys(q);
+  if(!ids.length)return;
+  var chain=Promise.resolve();
+  ids.slice(0,5).forEach(function(id){
+    chain=chain.then(function(){
+      return api('/planer/name?day='+day,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id:+id,name:q[id].н,phone:q[id].т})})
+        .then(function(r){
+          if(r&&r.ok){var cur=load('pending')||{};delete cur[id];save('pending',cur)}
+        }).catch(function(){});
+    });
+  });
+}
 
 // ---- ключ доступа ----
 (function(){
@@ -265,6 +304,7 @@ function refresh(){
     if(!d||d.error)return;
     if(d.услуги&&d.услуги.length)save('svc',d.услуги);
     saveDay(day,d);data=loadDay(day)||d;setOffline(false);render();
+    if(d.хранилище==='ок')flushNames();
   }).catch(function(){setOffline(!loadDay(day))});
 }
 
@@ -324,7 +364,7 @@ function render(){
     var g0=document.getElementById('grid');g0.parentNode.insertBefore(warn,g0);}
   var noName=cached&&cached.записи&&cached.записи.some(function(b){return NONAME.test(b.имя||'')});
   if(noName){
-    warn.textContent='У части записей не загрузилось имя: хранилище в Яндекс Облаке отвечает с перебоями после аварии. Записи на месте, имя есть в сообщении бота. Потяните страницу вниз, чтобы обновить, — обычно со второго раза имя приходит.';
+    warn.textContent='У части записей не загрузилось имя: хранилище в Яндекс Облаке всё ещё лежит после аварии. Записи на месте. Имя можно вписать прямо здесь — откройте запись и нажмите «Вписать имя»: оно сохранится в телефоне и уйдёт на сервер само, когда хранилище поднимется.';
     warn.hidden=false;
   }else{warn.hidden=true}
   var wd=document.getElementById('wd');
@@ -405,10 +445,15 @@ document.getElementById('infoEditBtn').onclick=function(){
     body:JSON.stringify({id:pickId,name:document.getElementById('enm').value.trim(),
       phone:document.getElementById('eph').value.trim()})})
     .then(function(r){
-      if(r&&r.ok){document.getElementById('info').close();refresh()}
-      else{msg.className='msg err';msg.textContent=(r&&r.error)||'Не получилось'}
+      var имя=document.getElementById('enm').value.trim();
+      var тел=document.getElementById('eph').value.trim();
+      keepName(pickId,имя,тел,!(r&&r.ok));
+      document.getElementById('info').close();refresh();
     })
-    .catch(function(){msg.className='msg err';msg.textContent='Хранилище пока недоступно — попробуйте позже'});
+    .catch(function(){
+      keepName(pickId,document.getElementById('enm').value.trim(),document.getElementById('eph').value.trim(),true);
+      document.getElementById('info').close();refresh();
+    });
 };
 
 document.getElementById('addOk').onclick=function(){
@@ -420,10 +465,11 @@ document.getElementById('addOk').onclick=function(){
       ok.disabled=false;
       if(r&&r.ok){
         /* Сервер отвечает «безИмени», когда запись создана, а хранилище имён
-           недоступно. Молчать об этом нельзя: в списке будет «имя
-           не загрузилось», и мастер не поймёт, почему. */
-        if(r.безИмени){var w=document.getElementById('addMsg');w.className='msg err';
-          w.textContent='Записала на это время, но имя и телефон не сохранились: хранилище недоступно. Впишите их позже.';
+           недоступно. Имя при этом не теряем: держим его в телефоне и в
+           очереди на отправку, а мастеру говорим, что оно уйдёт само. */
+        keepName(r.id,body.name,body.phone,!!r.безИмени);
+        if(r.безИмени){var w=document.getElementById('addMsg');w.className='msg ok';
+          w.textContent='Записала. Имя пока держу в телефоне: хранилище недоступно, отправлю его само, когда поднимется.';
           document.getElementById('nm').value='';document.getElementById('ph').value='';refresh();return}
         document.getElementById('add').close();
         document.getElementById('nm').value='';document.getElementById('ph').value='';refresh()}

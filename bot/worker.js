@@ -2850,6 +2850,56 @@ export default {
         return json(out);
       }
 
+      /* Витрина для анализа: только агрегаты — сколько записей, по каким
+         каналам, как рано записываются, доходят ли напоминания. Имён
+         и телефонов здесь нет и быть не может: они в российском хранилище,
+         а в этой базе их нет вовсе. Ключ — тот же, что у планера. */
+      if (path === '/stats') {
+        const pk = await getSetting(env, 'planer_key');
+        if (!pk || url.searchParams.get('key') !== pk) {
+          return new Response('Нет доступа', { status: 403, headers: cors });
+        }
+        const [cols, byMonth, byStatus, byChannel, byService, lead, rem] = await env.DB.batch([
+          env.DB.prepare('PRAGMA table_info(bookings)'),
+          env.DB.prepare(
+            "SELECT substr(day,1,7) AS месяц, count(*) AS всего, " +
+              "sum(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) AS отменено, " +
+              "sum(CASE WHEN client_kind IS NULL THEN 1 ELSE 0 END) AS без_чата " +
+              'FROM bookings GROUP BY месяц ORDER BY месяц',
+          ),
+          env.DB.prepare('SELECT status AS статус, count(*) AS сколько FROM bookings GROUP BY status'),
+          env.DB.prepare(
+            "SELECT coalesce(client_kind,'сайт_или_мастер') AS канал, count(*) AS сколько FROM bookings GROUP BY канал",
+          ),
+          env.DB.prepare(
+            "SELECT service AS услуга, count(*) AS сколько FROM bookings WHERE status != 'cancelled' " +
+              'GROUP BY service ORDER BY сколько DESC LIMIT 15',
+          ),
+          env.DB.prepare(
+            "SELECT round(avg(julianday(day) - julianday(substr(created_at,1,10))),2) AS дней_вперёд, " +
+              'min(created_at) AS первая, max(created_at) AS последняя FROM bookings',
+          ),
+          env.DB.prepare(
+            'SELECT count(*) AS с_чатом, sum(reminded_day) AS напомнили FROM bookings WHERE client_chat IS NOT NULL',
+          ),
+        ]);
+        return json(
+          {
+            колонки: cols.results.map(function (c) {
+              return c.name;
+            }),
+            по_месяцам: byMonth.results,
+            по_статусам: byStatus.results,
+            по_каналам: byChannel.results,
+            топ_услуг: byService.results,
+            горизонт: lead.results[0],
+            напоминания: rem.results[0],
+          },
+          200,
+          cors,
+        );
+      }
+
       if (path === '/diag') return json(await handleDiag(env));
       if (path === '/setup') return json(await handleSetup(env, url));
 

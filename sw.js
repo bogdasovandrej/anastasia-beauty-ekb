@@ -3,7 +3,7 @@
    Саму страницу и оформление держим в кэше и отдаём сразу, а обновление
    подтягиваем в фоне. Запросы к серверу через кэш не идут — их данные
    планер сам складывает в память телефона. */
-var CACHE = 'mk-planer-v3';
+var CACHE = 'mk-planer-v4';
 var FILES = ['planer.html', 'manifest.webmanifest', 'images/logo.jpg', 'favicon.svg'];
 
 self.addEventListener('install', function (e) {
