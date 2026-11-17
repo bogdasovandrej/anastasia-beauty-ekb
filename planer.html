@@ -108,6 +108,9 @@ background:linear-gradient(135deg,#d4a5a5,#b27d7d)}
     <input id="eph" placeholder="Телефон" maxlength="30" inputmode="tel">
     <p id="editMsg" class="msg"></p>
   </div>
+  <div class="btns" style="margin-bottom:6px">
+  <button type="button" class="gray" id="came">✅ Пришла</button>
+  <button type="button" class="gray" id="noshow">❌ Не пришла</button></div>
   <div class="btns"><button type="button" class="gray" id="infoClose">Закрыть</button>
   <button type="button" class="gray" id="infoEditBtn">Вписать имя</button>
   <button type="button" class="red" id="infoDel">Отменить запись</button></div>
@@ -392,7 +395,7 @@ function render(){
     var busy=cached.записи.find(function(b){return m>=b.начало&&m<b.конец});
     if(bk){
       html+='<div class="row"><div class="hh">'+hhmm(m)+'</div><div class="bk" data-id="'+bk.id+'">'+
-        '<b>'+esc(bk.имя)+'</b><span class="s">'+esc(bk.услуга)+' · '+bk.время+'</span>'+
+        '<b>'+(bk.пришёл===true?'✅ ':bk.пришёл===false?'❌ ':'')+esc(bk.имя)+'</b><span class="s">'+esc(bk.услуга)+' · '+bk.время+'</span>'+
         '<div class="p">'+esc(bk.телефон)+'</div>'+
         (bk.пометка?'<div class="n">'+esc(bk.пометка)+'</div>':'')+'</div></div>';
       m=bk.конец;
@@ -425,6 +428,8 @@ document.getElementById('grid').addEventListener('click',function(e){
     document.getElementById('infoBody').innerHTML='<p>'+esc(b.услуга)+'<br>'+b.время+'</p>'+
       '<p style="margin-top:8px"><a href="tel:'+esc(b.телефон)+'">'+esc(b.телефон)+'</a></p>'+
       (b.пометка?'<p style="margin-top:8px;color:#57534e">'+esc(b.пометка)+'</p>':'');
+    document.getElementById('came').style.background=b.пришёл===true?'#dcfce7':'';
+    document.getElementById('noshow').style.background=b.пришёл===false?'#fee2e2':'';
     var eb=document.getElementById('infoEditBtn');eb.textContent='Вписать имя';
     document.getElementById('infoEdit').hidden=true;
     document.getElementById('editMsg').textContent='';
@@ -434,6 +439,20 @@ document.getElementById('grid').addEventListener('click',function(e){
 });
 document.getElementById('addCancel').onclick=function(){document.getElementById('add').close()};
 document.getElementById('infoClose').onclick=function(){document.getElementById('info').close()};
+
+/* Отметка явки. Нужна ради одной цифры, которой сейчас нет нигде: сколько
+   клиентов не доходит. Отмена и неявка — разное: отменённое время мастер
+   успевает занять, а неявка — это потерянный час. */
+function отметить(пришёл){
+  var было=data&&data.записи?data.записи.find(function(x){return x.id===pickId}):null;
+  if(было)было.пришёл=пришёл;
+  render();
+  document.getElementById('info').close();
+  api('/planer/visit?day='+day,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:pickId,'пришёл':пришёл})}).then(refresh).catch(function(){});
+}
+document.getElementById('came').onclick=function(){отметить(true)};
+document.getElementById('noshow').onclick=function(){отметить(false)};
 
 /* Имя можно вписать и позже: если во время сбоя хранилища запись
    создалась без имени, мастер открывает её и дописывает. */

@@ -1617,7 +1617,7 @@ async function planerKey(env) {
    версии страницы, сохранённые в телефоне. */
 async function dayData(env, day, withServices) {
   const r = await env.DB.prepare(
-    'SELECT id, start_min, end_min, service FROM bookings ' +
+    'SELECT id, start_min, end_min, service, attended FROM bookings ' +
       "WHERE day = ? AND status != 'cancelled' ORDER BY start_min",
   )
     .bind(day)
@@ -1641,6 +1641,7 @@ async function dayData(env, day, withServices) {
         конец: b.end_min,
         время: hhmm(b.start_min) + '–' + hhmm(b.end_min),
         услуга: b.service,
+        пришёл: b.attended === null || b.attended === undefined ? null : !!b.attended,
         имя: b.name,
         телефон: b.phone,
         пометка: b.note || '',
@@ -2800,6 +2801,20 @@ export default {
           );
         }
 
+        /* Отметка «пришла / не пришла». Мастер ставит её в планере одним
+           нажатием: иначе неявки остаются только у неё в голове. */
+        if (path === '/planer/visit' && request.method === 'POST') {
+          const b = await request.json().catch(function () {
+            return {};
+          });
+          const id = parseInt(b.id, 10);
+          const был = b.пришёл === true || b.пришёл === 1 ? 1 : b.пришёл === null ? null : 0;
+          const r = await env.DB.prepare('UPDATE bookings SET attended = ?, attended_at = ? WHERE id = ?')
+            .bind(был, был === null ? null : new Date().toISOString(), id)
+            .run();
+          return json({ ok: !!r.meta.changes, пришёл: был }, r.meta.changes ? 200 : 404, cors);
+        }
+
         if (path === '/planer/cancel' && request.method === 'POST') {
           const b = await request.json().catch(function () {
             return {};
@@ -2854,12 +2869,32 @@ export default {
          каналам, как рано записываются, доходят ли напоминания. Имён
          и телефонов здесь нет и быть не может: они в российском хранилище,
          а в этой базе их нет вовсе. Ключ — тот же, что у планера. */
+      /* Разовая правка таблицы: колонка явки. Без неё нельзя считать неявки —
+         отмена и неявка это разное: отменённое время мастер успевает занять. */
+      if (path === '/migrate') {
+        const pk = await getSetting(env, 'planer_key');
+        if (!pk || url.searchParams.get('key') !== pk) {
+          return new Response('Нет доступа', { status: 403, headers: cors });
+        }
+        const cols = await env.DB.prepare('PRAGMA table_info(bookings)').all();
+        const есть = cols.results.some(function (c) {
+          return c.name === 'attended';
+        });
+        if (!есть) {
+          await env.DB.batch([
+            env.DB.prepare('ALTER TABLE bookings ADD COLUMN attended INTEGER'),
+            env.DB.prepare('ALTER TABLE bookings ADD COLUMN attended_at TEXT'),
+          ]);
+        }
+        return json({ ok: true, добавлено: !есть }, 200, cors);
+      }
+
       if (path === '/stats') {
         const pk = await getSetting(env, 'planer_key');
         if (!pk || url.searchParams.get('key') !== pk) {
           return new Response('Нет доступа', { status: 403, headers: cors });
         }
-        const [cols, byMonth, byStatus, byChannel, byService, lead, rem] = await env.DB.batch([
+        const [cols, byMonth, byStatus, byChannel, byService, lead, rem, visits] = await env.DB.batch([
           env.DB.prepare('PRAGMA table_info(bookings)'),
           env.DB.prepare(
             "SELECT substr(day,1,7) AS месяц, count(*) AS всего, " +
@@ -2882,6 +2917,13 @@ export default {
           env.DB.prepare(
             'SELECT count(*) AS с_чатом, sum(reminded_day) AS напомнили FROM bookings WHERE client_chat IS NOT NULL',
           ),
+          env.DB.prepare(
+            "SELECT substr(day,1,7) AS месяц, " +
+              'sum(CASE WHEN attended = 1 THEN 1 ELSE 0 END) AS пришли, ' +
+              'sum(CASE WHEN attended = 0 THEN 1 ELSE 0 END) AS не_пришли, ' +
+              "sum(CASE WHEN attended IS NULL AND status != 'cancelled' THEN 1 ELSE 0 END) AS без_отметки " +
+              'FROM bookings GROUP BY месяц ORDER BY месяц',
+          ),
         ]);
         return json(
           {
@@ -2894,6 +2936,7 @@ export default {
             топ_услуг: byService.results,
             горизонт: lead.results[0],
             напоминания: rem.results[0],
+            явка: visits.results,
           },
           200,
           cors,
