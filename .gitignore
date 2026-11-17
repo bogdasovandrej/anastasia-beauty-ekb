@@ -16,3 +16,6 @@ Thumbs.db
 .env.*
 .wrangler/
 yandex-price.xlsx
+
+analytics/
+bot/.planer-key

@@ -2815,6 +2815,19 @@ export default {
           return json({ ok: !!r.meta.changes, пришёл: был }, r.meta.changes ? 200 : 404, cors);
         }
 
+        /* Удалить запись насовсем — для служебных и тестовых строк, которые
+           не должны портить статистику. Отмена оставляет запись в базе,
+           а здесь строка исчезает вместе с именем в хранилище. */
+        if (path === '/planer/delete' && request.method === 'POST') {
+          const b = await request.json().catch(function () {
+            return {};
+          });
+          const id = parseInt(b.id, 10);
+          await pdDelete(env, id);
+          const r = await env.DB.prepare('DELETE FROM bookings WHERE id = ?').bind(id).run();
+          return json({ ok: !!r.meta.changes }, r.meta.changes ? 200 : 404, cors);
+        }
+
         if (path === '/planer/cancel' && request.method === 'POST') {
           const b = await request.json().catch(function () {
             return {};
@@ -2887,6 +2900,22 @@ export default {
           ]);
         }
         return json({ ok: true, добавлено: !есть }, 200, cors);
+      }
+
+      /* Построчная выгрузка для анализа. Персональных данных здесь нет:
+         имя и телефон лежат в российском хранилище, а в этой базе их нет.
+         Отдаём только то, из чего строятся витрины: когда записались,
+         на когда, что за услуга, чем закончилось. */
+      if (path === '/export') {
+        const pk = await getSetting(env, 'planer_key');
+        if (!pk || url.searchParams.get('key') !== pk) {
+          return new Response('Нет доступа', { status: 403, headers: cors });
+        }
+        const r = await env.DB.prepare(
+          'SELECT id, day, start_min, end_min, service, status, created_at, ' +
+            'client_kind, reminded_day, attended, attended_at FROM bookings ORDER BY id',
+        ).all();
+        return json({ строк: r.results.length, записи: r.results }, 200, cors);
       }
 
       if (path === '/stats') {
